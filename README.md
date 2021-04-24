@@ -11,6 +11,6 @@ muxic [source folder of mess] [target folder for clean music]
 
 Note that music will be *moved*, not *copied* from the source folder into the target folder. Where tags are not present and a filename can't be discerned, it will be copied into the root folder AS IS. Otherwise, expect folder layout in the following format:
 
-_[Artist]/[Album]/[Track Number] - [Track Title].mp3
+[Artist]/[Album]/[Track Number] - [Track Title].mp3
 
 
