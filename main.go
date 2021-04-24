@@ -37,7 +37,9 @@ func main() {
 		"feat.", "featuring",
 		"Feat.", "featuring",
 		"FEAT.", "featuring",
-		"Feat.", "featuring")
+		"Feat.", "featuring",
+		"12\"", "12 Inch",
+		"E.P.", "EP")
 
 	fmt.Println("MusicProc: A Utility by Punk Science Studios Inc.")
 
@@ -58,6 +60,8 @@ func main() {
 	for _, file := range files {
 		processFile(file, trgFolder, replacer)
 	}
+
+	fmt.Println("You're all set. Enjoy.")
 
 }
 
@@ -124,7 +128,7 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer) error {
 			os.Remove(file.path)
 		}
 	} else {
-		fmt.Printf("MOVING:\n%s\n%s----\n", file.path, newFullPath) // The detected format.
+		fmt.Printf("MOVING:\n%s\n%s\n----\n", file.path, newFullPath) // The detected format.
 		copyFile(file.path, newFullPath)
 		os.Remove(file.path)
 	}
@@ -198,9 +202,9 @@ func cleanupSymbols(str string, repl *strings.Replacer) string {
 	}
 
 	// Print out the change the was made for debugging purposes
-	if str != newString {
-		fmt.Printf("\"%s\" -> \"%s\"\n", str, newString)
-	}
+	// if str != newString {
+	// 	fmt.Printf("\"%s\" -> \"%s\"\n", str, newString)
+	// }
 
 	return newString
 }
