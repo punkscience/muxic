@@ -35,6 +35,7 @@ func main() {
 		"w/", "with",
 		"W/", "with",
 		"ft.", "featuring",
+		"Ft.", "featuring",
 		"feat.", "featuring",
 		"Feat.", "featuring",
 		"FEAT.", "featuring",
@@ -42,7 +43,7 @@ func main() {
 		"12\"", "12 Inch",
 		"E.P.", "EP")
 
-	fmt.Println("MusicProc: A Utility by Punk Science Studios Inc.")
+	fmt.Printf("muxic v1.0.0\nA Utility by Punk Science Studios Inc.\n\n")
 
 	if len(os.Args) < 3 {
 		fmt.Println("Please specify a source and target folder (they can be the same).")
