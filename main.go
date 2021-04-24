@@ -19,6 +19,7 @@ type MusicFile struct {
 }
 
 func main() {
+	// Set up all the things we need to filter out for proper filenames
 	replacer := strings.NewReplacer("*", "+",
 		"http://", "",
 		"@", "at",
@@ -101,7 +102,13 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer) error {
 	// Try to read the tag
 	m, err := tag.ReadFrom(f)
 	if err != nil {
-		log.Fatal(err)
+		// If we fail to get the tags, let's just move it as is
+		log.Println("No tags found for " + file.path + ". Moving as is.")
+		trg := trgPath
+		trg = filepath.Join(trg, filepath.Base(file.path))
+		copyFile(file.path, trg)
+		os.Remove(file.path)
+		return nil
 	}
 
 	// Make sure the folders exist
