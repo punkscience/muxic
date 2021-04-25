@@ -16,6 +16,7 @@ import (
 type MusicFile struct {
 	path string
 	size int64
+	ext string 
 }
 
 func main() {
@@ -53,26 +54,37 @@ func main() {
 	srcFolder := os.Args[1]
 	trgFolder := os.Args[2]
 
-	fmt.Println("Reading files from " + srcFolder + "...")
+	bNonDestructive := false
+	if len( os.Args ) >= 4 {
+		bNonDestructive = os.Args[3] == "-n"
+	}
 
-	files := readFiles(srcFolder)
+	fmt.Printf("Reading files from " + srcFolder )
+	if bNonDestructive == true {
+		fmt.Printf(" in non-destructive mode...\n")
+	} else {
+		fmt.Printf("...\n")
+	}
+
+	files := scanFiles(srcFolder)
 	fmt.Printf("Read %d files.\n", len(files))
 
 	// Now process all the files
 	for _, file := range files {
-		processFile(file, trgFolder, replacer)
+		processFile(file, trgFolder, replacer, bNonDestructive )
 	}
 
 	fmt.Println("You're all set. Enjoy.")
 
 }
 
-func readFiles(src string) []MusicFile {
+// Scans all files in the folder and returns a list in MusicFile format.
+func scanFiles(src string) []MusicFile {
 	files := []MusicFile{}
 
 	err := filepath.Walk(src,
 		func(path string, info os.FileInfo, err error) error {
-			if info.Name()[0] == '.' || info.IsDir() == true || strings.ToLower(filepath.Ext(path)) != ".mp3" {
+			if info.Name()[0] == '.' || info.IsDir() == true {
 				return nil
 			}
 
@@ -81,8 +93,12 @@ func readFiles(src string) []MusicFile {
 				return err
 			}
 
-			musicFile := MusicFile{path: path, size: info.Size()}
-			files = append(files, musicFile)
+			// We're only worried about the files we support
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext == ".mp3" || ext == ".flac" || ext == "m4a" {
+				musicFile := MusicFile{path: path, size: info.Size(), ext: ext}
+				files = append(files, musicFile)
+			}
 
 			return nil
 		})
@@ -93,7 +109,7 @@ func readFiles(src string) []MusicFile {
 	return files
 }
 
-func processFile(file MusicFile, trgPath string, repl *strings.Replacer) error {
+func processFile(file MusicFile, trgPath string, repl *strings.Replacer, bNonDestructive bool ) error {
 	f, err := os.Open(file.path)
 	if err != nil {
 		log.Fatal(err)
@@ -108,7 +124,11 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer) error {
 		trg := trgPath
 		trg = filepath.Join(trg, filepath.Base(file.path))
 		copyFile(file.path, trg)
-		os.Remove(file.path)
+
+		if bNonDestructive == false {
+			os.Remove(file.path)
+		}
+		
 		return nil
 	}
 
@@ -130,15 +150,22 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer) error {
 
 		// Make sure we're not cleaning up a single folder, in which case we'd be deleting everything
 		if strings.ToLower(newFullPath) != strings.ToLower(file.path) {
-			// fmt.Println("SRC: " + file.path)
-			// fmt.Println("DST: " + newFullPath)
-			fmt.Println("DELETING " + file.path) // The detected format.
-			os.Remove(file.path)
+			
+			if bNonDestructive == false {
+				fmt.Println("DELETING " + file.path) // The detected format.
+				os.Remove(file.path)			
+			} else {
+				fmt.Println("WOULD HAVE DELETED " + file.path) // The detected format.
+			}
+			
 		}
 	} else {
 		fmt.Printf("MOVING:\n%s\n%s\n----\n", file.path, newFullPath) // The detected format.
 		copyFile(file.path, newFullPath)
-		os.Remove(file.path)
+
+		if bNonDestructive == false {
+			os.Remove(file.path)
+		}		
 	}
 
 	return nil
@@ -154,6 +181,8 @@ func buildNewPath(file MusicFile, root string, tag tag.Metadata, repl *strings.R
 	album := cleanupSymbols(tag.Album(), repl)
 	title := cleanupSymbols(tag.Title(), repl)
 	title = strings.Replace(title, ".mp3", "", -1)
+	title = strings.Replace(title, ".flac", "", -1)
+	title = strings.Replace(title, ".m4a", "", -1)
 
 	newPath = path.Join(root, artist)
 	newPath = path.Join(newPath, album)
