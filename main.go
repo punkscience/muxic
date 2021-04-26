@@ -84,7 +84,21 @@ func scanFiles(src string) []MusicFile {
 
 	err := filepath.Walk(src,
 		func(path string, info os.FileInfo, err error) error {
-			if info.Name()[0] == '.' || info.IsDir() == true {
+			// Grab the current folder name
+			currentFolder := filepath.Base(path)
+
+			// If it's a folder, or a hidden folder, we don't care about it
+			if info.IsDir() == true  {
+				if currentFolder[0] == '.' {
+					fmt.Println("Ignoring hidden folder " + currentFolder )
+					return filepath.SkipDir
+				}
+				
+				return nil
+			}
+
+			// If it's a hidden file, we don't care about it
+			if info.Name()[0] == '.' {
 				return nil
 			}
 
