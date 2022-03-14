@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -35,32 +36,41 @@ func main() {
 		"  ", " ",
 		"w/", "with",
 		"W/", "with",
-		"ft.", "featuring",
+		" ft. ", " featuring" ,
+		" ft ", " featuring ",
+		" Of ", " of ",
+		" And ", " and ",
+		" The ", " the ",
 		"Ft.", "featuring",
 		"feat.", "featuring",
 		"Feat.", "featuring",
 		"FEAT.", "featuring",
 		"Feat.", "featuring",
 		"12\"", "12 Inch",
-		"E.P.", "EP")
+		"E.P.", "EP",
+		" & ", " and ",
+		" , ", ", ")
 
 	fmt.Printf("muxic v1.0.0\nA Utility by Punk Science Studios Inc.\n\n")
 
-	if len(os.Args) < 3 {
-		fmt.Println("Please specify a source and target folder (they can be the same).")
-		return
-	}
+	var safe bool
+	srcFolder := ""
+	trgFolder := ""
 
-	srcFolder := os.Args[1]
-	trgFolder := os.Args[2]
+	flag.StringVar(&srcFolder, "source", "", "Source folder of your mess.")
+    flag.StringVar(&trgFolder, "target", "", "Target folder to move all files to.")
+ 	safe = *flag.Bool( "safe", false, "Target folder to move all files to.")
 
-	bNonDestructive := false
-	if len( os.Args ) >= 4 {
-		bNonDestructive = os.Args[3] == "-n"
+    flag.Parse() 
+
+	if len( srcFolder ) == 0 || len( trgFolder ) == 0 {
+		fmt.Println("Please specify a source and target folder.")
+		os.Exit(1)
 	}
 
 	fmt.Printf("Reading files from " + srcFolder )
-	if bNonDestructive == true {
+
+	if safe {
 		fmt.Printf(" in non-destructive mode...\n")
 	} else {
 		fmt.Printf("...\n")
@@ -71,11 +81,40 @@ func main() {
 
 	// Now process all the files
 	for _, file := range files {
-		processFile(file, trgFolder, replacer, bNonDestructive )
+		processFile(file, trgFolder, replacer, safe )
 	}
+
+	scanEmptyFolders(srcFolder, safe )
+	log.Println("Scanning for empty folders...")
 
 	fmt.Println("You're all set. Enjoy.")
 
+}
+
+
+func scanEmptyFolders( src string, safe bool ) {
+
+	err := filepath.Walk(src,
+		func(path string, info os.FileInfo, err error) error {
+			// If it's a folder, or a hidden folder, we don't care about it
+			if info.IsDir() {
+
+					if !safe {
+						err := os.Remove( path )
+
+						if err == nil {
+							log.Printf( "DELETED empty folder %s\n", path )
+						} 
+					} else {
+						log.Printf( "WOULD HAVE DELETED empty folder %s\n", path )
+					}
+			}
+
+			return nil
+		})
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // Scans all files in the folder and returns a list in MusicFile format.
@@ -88,8 +127,8 @@ func scanFiles(src string) []MusicFile {
 			currentFolder := filepath.Base(path)
 
 			// If it's a folder, or a hidden folder, we don't care about it
-			if info.IsDir() == true  {
-				if currentFolder[0] == '.' {
+			if info.IsDir() {
+				if currentFolder[0] == '.' && currentFolder[1] != '.' {
 					fmt.Println("Ignoring hidden folder " + currentFolder )
 					return filepath.SkipDir
 				}
@@ -139,7 +178,7 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer, bNonDes
 		trg = filepath.Join(trg, filepath.Base(file.path))
 		copyFile(file.path, trg)
 
-		if bNonDestructive == false {
+		if !bNonDestructive {
 			os.Remove(file.path)
 		}
 		
@@ -159,25 +198,24 @@ func processFile(file MusicFile, trgPath string, repl *strings.Replacer, bNonDes
 
 	newFullPath := buildNewPath(file, trgPath, m, repl)
 
-	/// If it already exists, delete it
-	if _, err := os.Stat(newFullPath); err == nil { // TODO: Check file size too
-
-		// Make sure we're not cleaning up a single folder, in which case we'd be deleting everything
-		if strings.ToLower(newFullPath) != strings.ToLower(file.path) {
-			
-			if bNonDestructive == false {
-				fmt.Println("DELETING " + file.path) // The detected format.
+	/// If it already exists at the target, delete the source
+	if _, err := os.Stat(newFullPath); err == nil  { // TODO: Check file size too		
+	
+		// See if they're literally the same file
+		if !strings.EqualFold( file.path, newFullPath ) {
+			if !bNonDestructive {
+				log.Printf("DELETING %s because %s already exists.\n", file.path, newFullPath ) // The detected format.
 				os.Remove(file.path)			
 			} else {
-				fmt.Println("WOULD HAVE DELETED " + file.path) // The detected format.
+				log.Printf("WOULD HAVE DELETED %s because it already exists.\n", file.path) // The detected format.
 			}
-			
 		}
+		
 	} else {
 		fmt.Printf("MOVING:\n%s\n%s\n----\n", file.path, newFullPath) // The detected format.
 		copyFile(file.path, newFullPath)
 
-		if bNonDestructive == false {
+		if !bNonDestructive {
 			os.Remove(file.path)
 		}		
 	}
