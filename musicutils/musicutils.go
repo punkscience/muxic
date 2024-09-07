@@ -15,6 +15,7 @@ import (
 
 // GetAllMusicFiles returns a list of all music files in the specified folder
 func GetAllMusicFiles(folder string) []string {
+	fmt.Printf("Scanning all music files in folder %s ...\n", folder)
 	var files []string
 	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -26,6 +27,8 @@ func GetAllMusicFiles(folder string) []string {
 			strings.HasSuffix(info.Name(), ".m4a") ||
 			strings.HasSuffix(info.Name(), ".wav")) {
 			files = append(files, path)
+
+			//fmt.Println("Found music file: ", path)
 		}
 		return nil
 	})
@@ -93,65 +96,87 @@ func FileExists(file string) bool {
 }
 
 // CopyFile copies the file from the source to the target
-func CopyFile(source string, target string, move bool) {
+func CopyFile(source string, target string) {
 	input, err := os.Open(source)
 	if err != nil {
 		log.Println("Error opening source file: ", source)
-		return
+		panic(err)
 	}
-	defer input.Close()
 
 	// Create the target path
 	err = os.MkdirAll(filepath.Dir(target), os.ModePerm)
 	if err != nil {
 		log.Println("Error creating target path: ", err)
-		return
+		panic(err)
 	}
 
 	output, err := os.Create(target)
 	if err != nil {
 		log.Println("Error creating target file: ", err)
-		return
+		panic(err)
 	}
 	defer output.Close()
 
 	_, err = io.Copy(output, input)
 	if err != nil {
 		log.Println("Error copying file: ", err)
+		panic(err)
+	}
+
+	input.Close()
+}
+
+// Check if a folder is empty
+func IsDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
+}
+
+func DeleteFile(file string) {
+	// If this flag is set, delete the source file
+	fmt.Println("Deleting source file: ", file)
+	err := os.Remove(file)
+	if err != nil {
+		log.Println("Error deleting source file: ", err)
 		return
 	}
 
-	// If this flag is set, delete the source file
-	if move {
-		fmt.Println("Deleting source file: ", source)
-		err = os.Remove(source)
-		if err != nil {
-			log.Println("Error deleting source file: ", err)
-			return
-		}
-
-		// Once removed, see if the folder is empty
-		// If it is, remove the folder
-		dir := filepath.Dir(source)
-		if len(GetAllMusicFiles(dir)) == 0 {
+	// Once removed, see if the folder is empty
+	// If it is, remove the folder
+	dir := filepath.Dir(file)
+	empty, err := IsDirEmpty(dir)
+	if err != nil {
+		if empty {
 			fmt.Println("Deleting empty source folder: ", dir)
 			err = os.Remove(dir)
 			if err != nil {
 				log.Println("Error deleting source folder: ", err)
 				return
 			}
-		}
 
-		// Now see if the parent artist folder is empty
-		dir = filepath.Dir(dir)
-		if len(GetAllMusicFiles(dir)) == 0 {
-			fmt.Println("Deleting empty source folder: ", dir)
-			err = os.Remove(dir)
+			// Now see if the parent artist folder is empty
+			dir = filepath.Dir(dir)
+			empty, err = IsDirEmpty(dir)
+
 			if err != nil {
-				log.Println("Error deleting source artist folder: ", err)
-				return
+				if empty {
+					fmt.Println("Deleting empty source folder: ", dir)
+					err = os.Remove(dir)
+					if err != nil {
+						log.Println("Error deleting source artist folder: ", err)
+						return
+					}
+				}
 			}
 		}
 	}
-
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"muxic/musicutils"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -20,9 +21,10 @@ mp3 tag information to create the appropriate folder layout. It also cleans up t
 removes any special characters from the file names.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get the complete list of files from the source folder
-		sourceFolder := cmd.Flag("source").Value.String()
-		targetFolder := cmd.Flag("target").Value.String()
+		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
+		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
 		destructive := cmd.Flag("destructive").Value.String() == "true"
+
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 
 		// Print all the files
@@ -35,10 +37,13 @@ removes any special characters from the file names.`,
 			// If it does, skip the file
 			if musicutils.FileExists(targetPathName) {
 				fmt.Printf("EXISTS: %s, skipping it...\n", targetPathName)
-				continue
 			} else {
 				fmt.Printf("Copying %s to %s\n", file, targetPathName)
-				musicutils.CopyFile(file, targetPathName, destructive)
+				musicutils.CopyFile(file, targetPathName)
+			}
+
+			if destructive {
+				musicutils.DeleteFile(file)
 			}
 		}
 	},
