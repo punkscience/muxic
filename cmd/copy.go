@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"muxic/musicutils"
 	"path/filepath"
 
@@ -21,6 +22,7 @@ removes any special characters from the file names.`,
 		// Get the complete list of files from the source folder
 		sourceFolder := cmd.Flag("source").Value.String()
 		targetFolder := cmd.Flag("target").Value.String()
+		destructive := cmd.Flag("destructive").Value.String() == "true"
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 
 		// Print all the files
@@ -29,17 +31,16 @@ removes any special characters from the file names.`,
 			targetPathName := musicutils.GetTargetPathName(file)
 			targetPathName = filepath.Join(targetFolder, targetPathName)
 
-			println(file)
-			println(targetPathName)
-
 			// Check to see if the target file already exists
 			// If it does, skip the file
 			if musicutils.FileExists(targetPathName) {
-				println("File already exists, skipping...")
+				fmt.Printf("EXISTS: %s, skipping it...\n", targetPathName)
 				continue
+			} else {
+				fmt.Printf("Copying %s to %s\n", file, targetPathName)
+				musicutils.CopyFile(file, targetPathName, destructive)
 			}
 		}
-
 	},
 }
 
@@ -56,4 +57,5 @@ func init() {
 	// is called directly, e.g.:
 	copyCmd.Flags().String("source", "s", "The source folder name")
 	copyCmd.Flags().String("target", "t", "The destination folder name")
+	copyCmd.Flags().BoolP("destructive", "d", false, "Delete source file once target is verified")
 }

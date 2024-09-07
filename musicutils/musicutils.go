@@ -2,6 +2,7 @@ package musicutils
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -49,13 +50,29 @@ func GetTargetPathName(file string) string {
 
 		// Format each string in proper title format
 		converter := cases.Title(language.English)
-		artist := converter.String(tag.Artist())
-		album := converter.String(tag.Album())
-		title := converter.String(tag.Title())
-		track := fmt.Sprintf("%d", tag.Track())
+
+		artist := converter.String(strings.Trim(tag.Artist(), " "))
+		album := converter.String(strings.Trim(tag.Album(), " "))
+		title := converter.String(strings.Trim(tag.Title(), " "))
+		trackNo := fmt.Sprintf("%d", tag.Track())
+
+		// Make sure they have some value
+		if artist == "" {
+			artist = "Unknown Artist"
+		}
+		if album == "" {
+			album = "Unknown Album"
+		}
+		if title == "" {
+			// Generate a title from the file name
+			_, title = filepath.Split(file)
+			title = strings.TrimSuffix(title, filepath.Ext(file))
+
+			title = "Unknown Track " + title
+		}
 
 		// Retrieve the desired tag information, e.g., tag.Title(), tag.Artist(), etc.
-		targetPath = fmt.Sprintf("%s/%s/%s - %s", artist, album, track, title)
+		targetPath = fmt.Sprintf("%s/%s/%s - %s", artist, album, trackNo, title)
 		targetPath = targetPath + filepath.Ext(file)
 
 		// Return the target path name
@@ -73,4 +90,68 @@ func FileExists(file string) bool {
 		return false
 	}
 	return true
+}
+
+// CopyFile copies the file from the source to the target
+func CopyFile(source string, target string, move bool) {
+	input, err := os.Open(source)
+	if err != nil {
+		log.Println("Error opening source file: ", source)
+		return
+	}
+	defer input.Close()
+
+	// Create the target path
+	err = os.MkdirAll(filepath.Dir(target), os.ModePerm)
+	if err != nil {
+		log.Println("Error creating target path: ", err)
+		return
+	}
+
+	output, err := os.Create(target)
+	if err != nil {
+		log.Println("Error creating target file: ", err)
+		return
+	}
+	defer output.Close()
+
+	_, err = io.Copy(output, input)
+	if err != nil {
+		log.Println("Error copying file: ", err)
+		return
+	}
+
+	// If this flag is set, delete the source file
+	if move {
+		fmt.Println("Deleting source file: ", source)
+		err = os.Remove(source)
+		if err != nil {
+			log.Println("Error deleting source file: ", err)
+			return
+		}
+
+		// Once removed, see if the folder is empty
+		// If it is, remove the folder
+		dir := filepath.Dir(source)
+		if len(GetAllMusicFiles(dir)) == 0 {
+			fmt.Println("Deleting empty source folder: ", dir)
+			err = os.Remove(dir)
+			if err != nil {
+				log.Println("Error deleting source folder: ", err)
+				return
+			}
+		}
+
+		// Now see if the parent artist folder is empty
+		dir = filepath.Dir(dir)
+		if len(GetAllMusicFiles(dir)) == 0 {
+			fmt.Println("Deleting empty source folder: ", dir)
+			err = os.Remove(dir)
+			if err != nil {
+				log.Println("Error deleting source artist folder: ", err)
+				return
+			}
+		}
+	}
+
 }
