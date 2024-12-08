@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"muxic/musicutils"
+	"strings"
 
 	"os"
 
@@ -27,6 +28,10 @@ removes any special characters from the file names.`,
 		// Get the complete list of files from the source folder
 		sourceFolder := cmd.Flag("source").Value.String()
 		targetFolder := cmd.Flag("target").Value.String()
+
+		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
+		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
+		destructive := cmd.Flag("destructive").Value.String() == "true"
 
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 
@@ -74,7 +79,6 @@ removes any special characters from the file names.`,
 
 			println("Finished: ", resultFileName)
 		}
-
 	},
 }
 
