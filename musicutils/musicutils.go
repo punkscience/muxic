@@ -1,7 +1,6 @@
 package musicutils
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -11,8 +10,6 @@ import (
 
 // GetAllMusicFiles returns a list of all music files in the specified folder
 func GetAllMusicFiles(folder string) []string {
-	fmt.Printf("Scanning all music files in folder %s...\n", folder)
-
 	var files []string
 	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -52,7 +49,6 @@ func IsDirEmpty(name string) (bool, error) {
 
 func DeleteFile(file string) {
 	// If this flag is set, delete the source file
-	fmt.Println("Deleting source file: ", file)
 	err := os.Remove(file)
 	if err != nil {
 		log.Println("Error deleting source file: ", err)
@@ -60,32 +56,27 @@ func DeleteFile(file string) {
 	}
 
 	// Once removed, see if the folder is empty
-	// If it is, remove the folder
+	// If it is, remove the folders
 	dir := filepath.Dir(file)
-	empty, err := IsDirEmpty(dir)
-	if err != nil {
-		if empty {
-			log.Println("Deleting empty source folder: ", dir)
-			err = os.Remove(dir)
-			if err != nil {
-				log.Println("Error deleting source folder: ", err)
-				return
-			}
 
-			// Now see if the parent artist folder is empty
-			dir = filepath.Dir(dir)
-			empty, err = IsDirEmpty(dir)
+	// Get the root folder of a path
+	root := filepath.VolumeName(dir) + string(filepath.Separator)
 
-			if err != nil {
-				if empty {
-					log.Println("Deleting empty source folder: ", dir)
-					err = os.Remove(dir)
-					if err != nil {
-						log.Println("Error deleting source artist folder: ", err)
-						return
-					}
+	for dir != root {
+		empty, err := IsDirEmpty(dir)
+		if err == nil {
+			if empty {
+				log.Println("Deleting empty source folder: ", dir)
+				err = os.Remove(dir)
+				if err != nil {
+					log.Println("Error deleting source folder: ", err)
+					return
 				}
 			}
+		} else {
+			log.Println("Error checking if folder is empty: ", err)
 		}
+
+		dir = filepath.Dir(dir)
 	}
 }

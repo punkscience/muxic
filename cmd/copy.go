@@ -4,6 +4,8 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"muxic/musicutils"
 	"strings"
@@ -27,15 +29,30 @@ removes any special characters from the file names.`,
 		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
 		destructive := cmd.Flag("move").Value.String() == "true"
+		verbose := cmd.Flag("verbose").Value.String() == "true"
+
+		// Turn the log off // TODO: Fix this to use a propper logger, this doesn't work.
+		if !verbose {
+			log.SetOutput(io.Discard)
+		}
 
 		if destructive {
-			log.Println("Destructive mode is on. Source files will be deleted after copying.")
+			fmt.Println("Muxic: Destructive mode is on. Source files will be deleted after copying.")
 		}
+
+		fmt.Println("Muxic: Scanning all files from: ", sourceFolder)
 
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 
+		fmt.Println("Muxic: Found ", len(allFiles), " music files. Processing...")
+
 		// Print all the files
 		for _, file := range allFiles {
+
+			if verbose {
+				log.Println("Copying file: ", file)
+			}
+
 			resultFileName, err := movemusic.CopyMusic(file, targetFolder, true)
 
 			if err != nil {
@@ -48,10 +65,12 @@ removes any special characters from the file names.`,
 			}
 
 			if destructive {
-
-				// Delete the source file
-				log.Println("Deleting source file: ", file)
-				musicutils.DeleteFile(file)
+				// Only delete if they are not the same file entirely.
+				if !strings.EqualFold(file, resultFileName) {
+					// Delete the source file
+					log.Println("Deleting source file: ", file)
+					musicutils.DeleteFile(file)
+				}
 			}
 
 			log.Println("Finished: ", resultFileName)
@@ -74,4 +93,5 @@ func init() {
 	copyCmd.Flags().String("target", "", "The destination folder name")
 
 	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move, don't copy -- delete the source file after copying")
+	copyCmd.Flags().BoolVarP(&destructive, "verbose", "v", false, "Log everything.")
 }
