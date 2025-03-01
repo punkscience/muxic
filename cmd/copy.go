@@ -9,8 +9,6 @@ import (
 	"muxic/musicutils"
 	"strings"
 
-	"os"
-
 	"github.com/punkscience/movemusic"
 	"github.com/spf13/cobra"
 )
@@ -36,15 +34,14 @@ removes any special characters from the file names.`,
 		// Print all the files
 		for _, file := range allFiles {
 			if destructive {
-				fmt.Println("Moving file: ", file)
-			} else {
-				fmt.Println("Copying file: ", file)
+				log.Println("Deleting source file ", file)
+				musicutils.DeleteFile(file)
 			}
 
 			resultFileName, err := movemusic.CopyMusic(file, targetFolder, true)
 
 			// Check if the file is the same as the result file
-			sameFile := resultFileName == file
+			sameFile := strings.EqualFold(resultFileName, file)
 
 			if err != nil {
 				if err == movemusic.ErrFileExists {
@@ -53,11 +50,7 @@ removes any special characters from the file names.`,
 					if destructive && !sameFile {
 						// Delete the source file
 						fmt.Println("Deleting source file: ", file)
-						err := os.Remove(file)
-
-						if err != nil {
-							println("Error deleting file: ", err)
-						}
+						musicutils.DeleteFile(file)
 					}
 				} else {
 					log.Println("Error copying file: ", err)
@@ -67,15 +60,11 @@ removes any special characters from the file names.`,
 			} else if destructive && !sameFile {
 
 				// Delete the source file
-				fmt.Println("Deleting source file: ", file)
-				err := os.Remove(file)
-
-				if err != nil {
-					println("Error deleting file: ", err)
-				}
+				log.Println("Deleting source file: ", file)
+				musicutils.DeleteFile(file)
 			}
 
-			println("Finished: ", resultFileName)
+			log.Println("Finished: ", resultFileName)
 		}
 	},
 }
