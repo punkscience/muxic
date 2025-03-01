@@ -7,10 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/dhowden/tag"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // GetAllMusicFiles returns a list of all music files in the specified folder
@@ -36,41 +32,6 @@ func GetAllMusicFiles(folder string) []string {
 		fmt.Printf("error walking the path %q: %v\n", folder, err)
 	}
 	return files
-}
-
-// GetTargetPathName returns the target path name for the file
-func GetTargetPathName(file string) string {
-	targetPath := ""
-
-	// Get the music file tag info
-	f, err := os.Open(file)
-	if err != nil {
-		fmt.Printf("error opening file %q: %v\n", file, err)
-		return targetPath
-	}
-	defer f.Close()
-
-	m, err := tag.ReadFrom(f)
-	if err != nil {
-		fmt.Printf("error reading tags from file %q: %v\n", file, err)
-		return targetPath
-	}
-
-	// Format each string in proper title format
-	converter := cases.Title(language.English)
-	artist := converter.String(m.Artist())
-	album := converter.String(m.Album())
-	title := converter.String(m.Title())
-
-	trackNo, _ := m.Track()
-	track := fmt.Sprintf("%d", trackNo)
-
-	// Retrieve the desired tag information, e.g., tag.Title(), tag.Artist(), etc.
-	targetPath = fmt.Sprintf("%s/%s/%s - %s", artist, album, track, title)
-	targetPath = targetPath + filepath.Ext(file)
-
-	// Return the target path name
-	return targetPath
 }
 
 // FileExists checks to see if the file exists
