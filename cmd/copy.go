@@ -93,5 +93,6 @@ func init() {
 	// is called directly, e.g.:
 	copyCmd.Flags().String("source", "", "The source folder name")
 	copyCmd.Flags().String("target", "", "The destination folder name")
+
 	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Delete the source file after copying")
 }

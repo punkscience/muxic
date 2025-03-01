@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wtolson/go-taglib"
+	"github.com/dhowden/tag"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -43,31 +43,33 @@ func GetTargetPathName(file string) string {
 	targetPath := ""
 
 	// Get the music file tag info
-	if strings.HasSuffix(file, ".mp3") || strings.HasSuffix(file, ".flac") || strings.HasSuffix(file, ".wav") {
-		tag, err := taglib.Read(file)
-		if err != nil {
-			fmt.Printf("error opening file %q: %v\n", file, err)
-			return targetPath
-		}
-		defer tag.Close()
-
-		// Format each string in proper title format
-		converter := cases.Title(language.English)
-		artist := converter.String(tag.Artist())
-		album := converter.String(tag.Album())
-		title := converter.String(tag.Title())
-		track := fmt.Sprintf("%d", tag.Track())
-
-		// Retrieve the desired tag information, e.g., tag.Title(), tag.Artist(), etc.
-		targetPath = fmt.Sprintf("%s/%s/%s - %s", artist, album, track, title)
-		targetPath = targetPath + filepath.Ext(file)
-
-		// Return the target path name
+	f, err := os.Open(file)
+	if err != nil {
+		fmt.Printf("error opening file %q: %v\n", file, err)
 		return targetPath
-	} else {
-		log.Println("Unsupported file type with extension: ", filepath.Ext(file))
+	}
+	defer f.Close()
+
+	m, err := tag.ReadFrom(f)
+	if err != nil {
+		fmt.Printf("error reading tags from file %q: %v\n", file, err)
+		return targetPath
 	}
 
+	// Format each string in proper title format
+	converter := cases.Title(language.English)
+	artist := converter.String(m.Artist())
+	album := converter.String(m.Album())
+	title := converter.String(m.Title())
+
+	trackNo, _ := m.Track()
+	track := fmt.Sprintf("%d", trackNo)
+
+	// Retrieve the desired tag information, e.g., tag.Title(), tag.Artist(), etc.
+	targetPath = fmt.Sprintf("%s/%s/%s - %s", artist, album, track, title)
+	targetPath = targetPath + filepath.Ext(file)
+
+	// Return the target path name
 	return targetPath
 }
 
