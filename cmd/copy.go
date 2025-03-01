@@ -4,7 +4,6 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"log"
 	"muxic/musicutils"
 	"strings"
@@ -33,31 +32,19 @@ removes any special characters from the file names.`,
 
 		// Print all the files
 		for _, file := range allFiles {
-			if destructive {
-				log.Println("Deleting source file ", file)
-				musicutils.DeleteFile(file)
-			}
-
 			resultFileName, err := movemusic.CopyMusic(file, targetFolder, true)
-
-			// Check if the file is the same as the result file
-			sameFile := strings.EqualFold(resultFileName, file)
 
 			if err != nil {
 				if err == movemusic.ErrFileExists {
-					fmt.Println("File already exists, skipping.")
-
-					if destructive && !sameFile {
-						// Delete the source file
-						fmt.Println("Deleting source file: ", file)
-						musicutils.DeleteFile(file)
-					}
+					log.Println("EXISTS: File already exists, skipping ", file)
 				} else {
 					log.Println("Error copying file: ", err)
 				}
 
 				continue
-			} else if destructive && !sameFile {
+			}
+
+			if destructive {
 
 				// Delete the source file
 				log.Println("Deleting source file: ", file)
@@ -83,5 +70,5 @@ func init() {
 	copyCmd.Flags().String("source", "", "The source folder name")
 	copyCmd.Flags().String("target", "", "The destination folder name")
 
-	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Delete the source file after copying")
+	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move, don't copy -- delete the source file after copying")
 }
