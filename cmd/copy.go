@@ -28,6 +28,10 @@ removes any special characters from the file names.`,
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
 		destructive := cmd.Flag("move").Value.String() == "true"
 
+		if destructive {
+			log.Println("Destructive mode is on. Source files will be deleted after copying.")
+		}
+
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 
 		// Print all the files
@@ -39,9 +43,8 @@ removes any special characters from the file names.`,
 					log.Println("EXISTS: File already exists, skipping ", file)
 				} else {
 					log.Println("Error copying file: ", err)
+					continue
 				}
-
-				continue
 			}
 
 			if destructive {
