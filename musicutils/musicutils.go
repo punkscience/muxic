@@ -81,37 +81,6 @@ func FileExists(file string) bool {
 	return true
 }
 
-// CopyFile copies the file from the source to the target
-func CopyFile(source string, target string) {
-	input, err := os.Open(source)
-	if err != nil {
-		log.Println("Error opening source file: ", source)
-		panic(err)
-	}
-
-	// Create the target path
-	err = os.MkdirAll(filepath.Dir(target), os.ModePerm)
-	if err != nil {
-		log.Println("Error creating target path: ", err)
-		panic(err)
-	}
-
-	output, err := os.Create(target)
-	if err != nil {
-		log.Println("Error creating target file: ", err)
-		panic(err)
-	}
-	defer output.Close()
-
-	_, err = io.Copy(output, input)
-	if err != nil {
-		log.Println("Error copying file: ", err)
-		panic(err)
-	}
-
-	input.Close()
-}
-
 // Check if a folder is empty
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
