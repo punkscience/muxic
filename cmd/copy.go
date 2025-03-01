@@ -26,7 +26,7 @@ removes any special characters from the file names.`,
 
 		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
-		destructive := cmd.Flag("destructive").Value.String() == "true"
+		destructive := cmd.Flag("move").Value.String() == "true"
 
 		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
 

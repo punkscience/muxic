@@ -11,11 +11,12 @@ import (
 
 // GetAllMusicFiles returns a list of all music files in the specified folder
 func GetAllMusicFiles(folder string) []string {
-	fmt.Printf("Scanning all music files in folder %s ...\n", folder)
+	fmt.Printf("Scanning all music files in folder %s...\n", folder)
+
 	var files []string
 	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			fmt.Printf("error accessing path %q: %v\n", path, err)
+			log.Printf("Error accessing path %q: %v\n", path, err)
 			return err
 		}
 		if !info.IsDir() && (strings.HasSuffix(info.Name(), ".mp3") ||
@@ -29,17 +30,9 @@ func GetAllMusicFiles(folder string) []string {
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("error walking the path %q: %v\n", folder, err)
+		log.Printf("Error walking the path %q: %v\n", folder, err)
 	}
 	return files
-}
-
-// FileExists checks to see if the file exists
-func FileExists(file string) bool {
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return false
-	}
-	return true
 }
 
 // Check if a folder is empty
@@ -72,7 +65,7 @@ func DeleteFile(file string) {
 	empty, err := IsDirEmpty(dir)
 	if err != nil {
 		if empty {
-			fmt.Println("Deleting empty source folder: ", dir)
+			log.Println("Deleting empty source folder: ", dir)
 			err = os.Remove(dir)
 			if err != nil {
 				log.Println("Error deleting source folder: ", err)
@@ -85,7 +78,7 @@ func DeleteFile(file string) {
 
 			if err != nil {
 				if empty {
-					fmt.Println("Deleting empty source folder: ", dir)
+					log.Println("Deleting empty source folder: ", dir)
 					err = os.Remove(dir)
 					if err != nil {
 						log.Println("Error deleting source artist folder: ", err)
