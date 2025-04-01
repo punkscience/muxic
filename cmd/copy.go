@@ -5,9 +5,10 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"muxic/musicutils"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/punkscience/movemusic"
@@ -15,6 +16,7 @@ import (
 )
 
 var destructive bool
+var verbose bool
 
 // copyCmd represents the copy command
 var copyCmd = &cobra.Command{
@@ -28,13 +30,12 @@ removes any special characters from the file names.`,
 
 		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
-		destructive := cmd.Flag("move").Value.String() == "true"
-		verbose := cmd.Flag("verbose").Value.String() == "true"
+		destructive = cmd.Flag("move").Value.String() == "true"
+		verbose = cmd.Flag("verbose").Value.String() == "true"
+		filter := strings.Trim(cmd.Flag("filter").Value.String(), " ")
+		maxMB, _ := strconv.Atoi(cmd.Flag("over").Value.String())
 
-		// Turn the log off // TODO: Fix this to use a propper logger, this doesn't work.
-		if !verbose {
-			log.SetOutput(io.Discard)
-		}
+		// Convert that to an int
 
 		if destructive {
 			fmt.Println("Muxic: Destructive mode is on. Source files will be deleted after copying.")
@@ -42,7 +43,14 @@ removes any special characters from the file names.`,
 
 		fmt.Println("Muxic: Scanning all files from: ", sourceFolder)
 
-		allFiles := musicutils.GetAllMusicFiles(sourceFolder)
+		var allFiles []string
+
+		if filter != "" || maxMB > 0 {
+			fmt.Println("Muxic: Filtering files to those containing: ", filter, " and size > ", maxMB, "MB")
+			allFiles = musicutils.GetFilteredMusicFiles(sourceFolder, filter, maxMB)
+		} else {
+			allFiles = musicutils.GetAllMusicFiles(sourceFolder)
+		}
 
 		fmt.Println("Muxic: Found ", len(allFiles), " music files. Processing...")
 
@@ -51,6 +59,17 @@ removes any special characters from the file names.`,
 
 			if verbose {
 				log.Println("Copying file: ", file)
+			}
+
+			// Check to see if the target folder exists and if not, create it
+			if !musicutils.FolderExists(targetFolder) {
+				// Create the target folder if it doesn't exist
+				log.Println("Creating target folder: ", targetFolder)
+				err := os.MkdirAll(targetFolder, os.ModePerm)
+				if err != nil {
+					log.Println("Error creating target folder: ", err)
+					continue
+				}
 			}
 
 			resultFileName, err := movemusic.CopyMusic(file, targetFolder, true)
@@ -91,7 +110,10 @@ func init() {
 	// is called directly, e.g.:
 	copyCmd.Flags().String("source", "", "The source folder name")
 	copyCmd.Flags().String("target", "", "The destination folder name")
+	copyCmd.Flags().String("filter", "", "Filter the files to copy by name. Case insensitive.")
+	copyCmd.Flags().Int("over", 0, "Only copy files over this size.")
 
 	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move, don't copy -- delete the source file after copying")
-	copyCmd.Flags().BoolVarP(&destructive, "verbose", "v", false, "Log everything.")
+	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Log everything.")
+
 }

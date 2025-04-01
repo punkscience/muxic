@@ -32,6 +32,41 @@ func GetAllMusicFiles(folder string) []string {
 	return files
 }
 
+// GetFilteredMusicFiles returns a list of all music files in the specified folder that match the filter
+func GetFilteredMusicFiles(folder string, filter string, maxMB int) []string {
+	var files []string
+	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+		if err == nil {
+
+			if !info.IsDir() && (strings.HasSuffix(info.Name(), ".mp3") ||
+				strings.HasSuffix(info.Name(), ".flac") ||
+				strings.HasSuffix(info.Name(), ".m4a") ||
+				strings.HasSuffix(info.Name(), ".wav")) {
+				if strings.Contains(strings.ToLower(path), strings.ToLower(filter)) {
+					if maxMB > 0 && info.Size() > int64(maxMB*1024*1024) {
+						files = append(files, path)
+						//fmt.Println("Found music file: ", path)
+					} else if maxMB == 0 {
+						files = append(files, path)
+					}
+
+				}
+			}
+		}
+
+		return err
+	})
+	if err != nil {
+		log.Printf("Error walking the path %q: %v\n", folder, err)
+	}
+	return files
+}
+
+func FolderExists(folder string) bool {
+	_, err := os.Stat(folder)
+	return !os.IsNotExist(err)
+}
+
 // Check if a folder is empty
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
