@@ -3,11 +3,10 @@ module muxic
 go 1.23.1
 
 require (
-	github.com/punkscience/movemusic v1.0.9
+	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/spf13/cobra v1.8.1
+	golang.org/x/text v0.25.0
 )
-
-replace github.com/punkscience/movemusic => ./movemusic
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"muxic/musicutils"
+	"muxic/movemusic"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/punkscience/movemusic"
 	"github.com/spf13/cobra"
 )
 
