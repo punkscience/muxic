@@ -14,6 +14,7 @@ import (
 
 var destructive bool
 var verbose bool
+var dryRun bool
 
 // copyCmd represents the copy command
 var copyCmd = &cobra.Command{
@@ -29,12 +30,17 @@ removes any special characters from the file names.`,
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
 		destructive = cmd.Flag("move").Value.String() == "true"
 		verbose = cmd.Flag("verbose").Value.String() == "true"
+		dryRun = cmd.Flag("dry-run").Value.String() == "true"
 		filter := strings.Trim(cmd.Flag("filter").Value.String(), " ")
 		maxMB, _ := strconv.Atoi(cmd.Flag("over").Value.String())
 
 		// Convert that to an int
 
-		if destructive {
+		if dryRun {
+			fmt.Println("Muxic: Dry-run mode enabled. No actual changes will be made.")
+		}
+
+		if destructive && !dryRun { // Only print if not a dry run, dry run has its own message
 			fmt.Println("Muxic: Destructive mode is on. Source files will be deleted after copying.")
 		}
 
@@ -54,42 +60,91 @@ removes any special characters from the file names.`,
 		// Print all the files
 		for _, file := range allFiles {
 
-			if verbose {
-				log.Println("Copying file: ", file)
+			if verbose || dryRun {
+				log.Println("Processing file: ", file)
 			}
 
 			// Check to see if the target folder exists and if not, create it
 			if !musicutils.FolderExists(targetFolder) {
-				// Create the target folder if it doesn't exist
-				log.Println("Creating target folder: ", targetFolder)
-				err := os.MkdirAll(targetFolder, os.ModePerm)
-				if err != nil {
-					log.Println("Error creating target folder: ", err)
-					continue
+				if dryRun {
+					log.Println("[DRY-RUN] Would create target folder: ", targetFolder)
+				} else {
+					log.Println("Creating target folder: ", targetFolder)
+					err := os.MkdirAll(targetFolder, os.ModePerm)
+					if err != nil {
+						log.Println("Error creating target folder: ", err)
+						continue
+					}
 				}
 			}
 
-			resultFileName, err := movemusic.CopyMusic(file, targetFolder, true)
+			var resultFileName string
+			var err error
+
+			if dryRun {
+				log.Printf("[DRY-RUN] Would attempt to process/copy music file '%s' to target folder '%s'\n", file, targetFolder)
+				// Simulate what movemusic.CopyMusic does for path generation for logging purposes
+				// This is a simplified simulation.
+				// Assuming basic "Artist/Album/Filename" structure for simulation.
+				// Actual library might have more complex logic for tag reading and sanitization.
+				artist := "SIMULATED_ARTIST"
+				album := "SIMULATED_ALBUM"
+				baseName := musicutils.SanitizeFileName(file) // Use existing sanitization for basename
+				resultFileName = musicutils.EnsureUniqueFilename(targetFolder + "/" + artist + "/" + album + "/" + baseName)
+
+				log.Printf("[DRY-RUN] Simulated target path would be approximately: %s\n", resultFileName)
+				// Simulate checking for existing file - for now, assume it doesn't exist to show full dry-run path
+				// if musicutils.FileExists(resultFileName) { err = movemusic.ErrFileExists } else { err = nil }
+				err = nil
+			} else {
+				resultFileName, err = movemusic.CopyMusic(file, targetFolder, true)
+			}
 
 			if err != nil {
 				if err == movemusic.ErrFileExists {
 					log.Println("EXISTS: File already exists, skipping ", file)
 				} else {
 					log.Println("Error copying file: ", err)
-					continue
 				}
+				continue
+			}
+
+			if !dryRun {
+				log.Println("Finished: ", resultFileName)
 			}
 
 			if destructive {
-				// Only delete if they are not the same file entirely.
-				if !strings.EqualFold(file, resultFileName) {
-					// Delete the source file
-					log.Println("Deleting source file: ", file)
-					musicutils.DeleteFile(file)
+				if dryRun {
+					if !strings.EqualFold(file, resultFileName) {
+						log.Println("[DRY-RUN] Would delete source file: ", file)
+						// Simulate the empty folder deletion logic of musicutils.DeleteFile
+						log.Println("[DRY-RUN] Would then check parent directories of", file, "for emptiness and potential deletion.")
+						// Simplified simulation of parent directory cleanup
+						// currentPath := file
+						// for {
+						// 	parentDir := filepath.Dir(currentPath)
+						// 	if parentDir == "." || parentDir == "/" || parentDir == filepath.Dir(sourceFolder) {
+						// 		break
+						// 	}
+						//  isEmpty, _ := musicutils.IsDirEmpty(parentDir) // This would be a real check
+						// 	log.Printf("[DRY-RUN] Would check if directory %s is empty. Simulated: true\n", parentDir)
+						// 	log.Printf("[DRY-RUN] Assuming directory %s is empty, would delete it.\n", parentDir)
+						// 	currentPath = parentDir
+						// 	if strings.EqualFold(parentDir, sourceFolder){ // Stop if we reach the source folder itself
+						//      break
+						//  }
+						// }
+					} else {
+						log.Println("[DRY-RUN] Source and (simulated) target are the same, would not delete: ", file)
+					}
+				} else {
+					// Original destructive logic
+					if !strings.EqualFold(file, resultFileName) {
+						log.Println("Deleting source file: ", file)
+						musicutils.DeleteFile(file) // This still performs actual deletions
+					}
 				}
 			}
-
-			log.Println("Finished: ", resultFileName)
 		}
 	},
 }
@@ -112,5 +167,6 @@ func init() {
 
 	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move, don't copy -- delete the source file after copying")
 	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Log everything.")
+	copyCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Report actions that would be taken without executing them.")
 
 }

@@ -57,3 +57,21 @@ Feature: Copy Music Files
     When I run the command "muxic copy --source non_existent_source --target target_music"
     Then the command should fail
     And the console output should contain "Error accessing path" or "Error walking the path"
+
+  Scenario: Dry-run copy operation
+    Given a source directory "source_dry_run_copy" with a music file "dry_copy_track.mp3"
+    And an empty target directory "target_dry_run_copy"
+    When I run the command "muxic copy --source source_dry_run_copy --target target_dry_run_copy --dry-run"
+    Then the console output should contain "[DRY-RUN] Would attempt to process/copy music file 'source_dry_run_copy/dry_copy_track.mp3'"
+    And the console output should contain "Dry-run mode enabled"
+    And the file "target_dry_run_copy/Artist/Album/01 - dry_copy_track.mp3" should not exist
+    And the source file "source_dry_run_copy/dry_copy_track.mp3" should still exist
+    And the target directory "target_dry_run_copy" should remain empty or not be created if it didn't initially exist (beyond its base)
+
+  Scenario: Dry-run copy creating a new target directory
+    Given a source directory "source_dry_run_new_target" with a music file "new_target_dry.mp3"
+    And the target directory "target_dry_run_mkdir" does not exist
+    When I run the command "muxic copy --source source_dry_run_new_target --target target_dry_run_mkdir --dry-run"
+    Then the console output should contain "[DRY-RUN] Would create target folder: target_dry_run_mkdir"
+    And the console output should contain "[DRY-RUN] Would attempt to process/copy music file 'source_dry_run_new_target/new_target_dry.mp3'"
+    And the directory "target_dry_run_mkdir" should not be created

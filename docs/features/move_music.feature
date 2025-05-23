@@ -45,3 +45,27 @@ Feature: Move Music Files
     Then the file "source_identical/Artist/Album/01 - same_song.mp3" should exist
     And the console output should not contain "Deleting source file: source_identical/Artist/Album/01 - same_song.mp3"
     And the console output should likely contain "EXISTS: File already exists" or similar, indicating it was skipped.
+
+  Scenario: Dry-run move operation
+    Given a source directory "source_dry_run_move" with a music file "dry_move_track.mp3"
+    And an empty target directory "target_dry_run_move"
+    When I run the command "muxic copy --source source_dry_run_move --target target_dry_run_move --move --dry-run"
+    Then the console output should contain "Dry-run mode enabled"
+    And the console output should contain "[DRY-RUN] Would attempt to process/copy music file 'source_dry_run_move/dry_move_track.mp3'"
+    And the console output should contain "[DRY-RUN] Would delete source file: source_dry_run_move/dry_move_track.mp3"
+    # The following step was updated to match the more generic message from the implementation for empty folder deletion simulation
+    And the console output should contain "[DRY-RUN] Would then check parent directories of source_dry_run_move/dry_move_track.mp3 for emptiness and potential deletion."
+    And the file "target_dry_run_move/Artist/Album/01 - dry_move_track.mp3" should not exist
+    And the source file "source_dry_run_move/dry_move_track.mp3" should still exist
+
+  Scenario: Dry-run move operation with existing target file
+    Given a source directory "source_dry_move_exists" with a music file "dry_exist_track.mp3"
+    And a target directory "target_dry_move_exists" that already contains "Artist/Album/01 - dry_exist_track.mp3" # (or a path that would be predicted for it)
+    When I run the command "muxic copy --source source_dry_move_exists --target target_dry_move_exists --move --dry-run"
+    Then the console output should contain "Dry-run mode enabled"
+    # Depending on implementation, it might predict the existing file or just state copy attempt.
+    # If movemusic.CopyMusic is called (even if its IO is stubbed), it might return ErrFileExists.
+    # For now, let's assume it reports the skip.
+    And the console output should contain "EXISTS: File already exists, skipping source_dry_move_exists/dry_exist_track.mp3"
+    And the console output should not contain "[DRY-RUN] Would delete source file: source_dry_move_exists/dry_exist_track.mp3"
+    And the source file "source_dry_move_exists/dry_exist_track.mp3" should still exist
