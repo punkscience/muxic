@@ -1,179 +1,178 @@
+// Package movemusic provides the core logic for copying or moving music files
+// based on their metadata. It handles filename sanitization, path generation,
+// and file operations, utilizing the metadata and filesystem packages.
 package movemusic
 
 import (
 	"fmt"
 	"io"
 	"log"
+	"muxic/pkg/filesystem"
+	"muxic/pkg/metadata"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/dhowden/tag"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
-func BuildDestinationFileName( sourceFileFullPath string, destFullPath string, useFolders bool ) ( string, error ) {
-	// Check if the source file exists
-	if _, err := os.Stat(sourceFileFullPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("source file does not exist")
+// specificSubstitutions holds rules for specific string replacements.
+// These are applied before general cleanup and title casing.
+var specificSubstitutions = map[string]string{
+	"feat.":     "ft",
+	"Feat.":     "ft",
+	"Feat":      "ft",
+	"Featuring": "ft",
+	"&":         "and",
+}
+
+// SuggestDestinationPath suggests a destination path for a music file based on its metadata.
+// It uses trackInfo to generate a filename and combines it with the destBaseFolder.
+// useFolders determines if the path includes Artist/Album subdirectories.
+// Filenames longer than 255 characters are truncated to the base name of the original source file.
+func SuggestDestinationPath(destBaseFolder string, useFolders bool, trackInfo *metadata.TrackInfo) (string, error) {
+	if trackInfo == nil {
+		return "", fmt.Errorf("trackInfo cannot be nil")
 	}
 
-	// Get the mp3, flac or wav file details from the file
-	file, err := os.Open(sourceFileFullPath)
-	if err != nil {
-		return "", fmt.Errorf("error opening the file")
-	}
-	defer file.Close()
+	newName := makeFileName(trackInfo, useFolders)
 
-	// Get the file extension
-	ext := strings.ToLower(filepath.Ext(sourceFileFullPath))
-	// Allow .txt for testing purposes, as per instructions
-	if ext != ".mp3" && ext != ".flac" && ext != ".wav" && ext != ".txt" {
-		return "", fmt.Errorf("unsupported file type: %s", ext)
-	}
-
-	// Check if the artist, album, track and track number are empty
-	artist := "Unknown"
-	album := "Unknown"
-	track := strings.TrimSuffix(filepath.Base(sourceFileFullPath), ext)
-	trackNumber := 1
-
-	// Open the source file
-	m, err := tag.ReadFrom(file)
-	if err == nil {
-		// Get the artist, album, track and track number
-
-		if m.Artist() != "" {
-			artist = m.Artist()
-		}
-
-		if m.Album() != "" {
-			album = m.Album()
-		}
-
-		if m.Title() != "" {
-			track = m.Title()
-		}
-
-		trackNumber, _ = m.Track()
-	}
-
-	// Build a name
-	newName := makeFileName(artist, album, track, trackNumber, ext, useFolders)
-
-	// There is a chance this goes off the rails if the tag data was larger than expected
-	// and windows has filename limitations to contend with, so let's correct that.
 	if len(newName) > 255 {
-		log.Println("Filename too long, using the original.")
-		newName = filepath.Base(sourceFileFullPath)
+		log.Println("Warning: Generated filename too long, using original base filename from source path.")
+		newName = filepath.Base(trackInfo.SourcePath)
 	}
 
-	// Build the destination file path
-	destFileFullPath := filepath.Join(destFullPath, newName)
-
+	destFileFullPath := filepath.Join(destBaseFolder, newName)
 	return destFileFullPath, nil
 }
 
-func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool) (string, error) {
-
-	// Check if the source file exists
-	if _, err := os.Stat(sourceFileFullPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("source file does not exist")
-	}
-
-	// Check if the destination folder exists
-	if _, err := os.Stat(destFolderPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("destination folder does not exist")
-	}
-
-	destFileFullPath, err := BuildDestinationFileName( sourceFileFullPath, destFolderPath, useFolders )
-
+// CopyMusic copies a music file from sourceFileFullPath to a new location within destFolderPath.
+// The new location is determined by the file's metadata and the useFolders flag.
+// If dryRun is true, it logs the intended operation without performing file system changes.
+func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool) (string, error) {
+	trackInfo, err := metadata.ReadTrackInfo(sourceFileFullPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error reading track info for %s: %w", sourceFileFullPath, err)
 	}
 
-	// Copy the file
+	if _, statErr := os.Stat(destFolderPath); os.IsNotExist(statErr) {
+		return "", fmt.Errorf("destination folder does not exist: %s", destFolderPath)
+	} else if statErr != nil {
+		return "", fmt.Errorf("error checking destination folder %s: %w", destFolderPath, statErr)
+	}
+
+	destFileFullPath, err := SuggestDestinationPath(destFolderPath, useFolders, trackInfo)
+	if err != nil {
+		return "", fmt.Errorf("error suggesting destination path: %w", err)
+	}
+
+	if dryRun {
+		log.Printf("[DRY-RUN] Would copy %s to %s", sourceFileFullPath, destFileFullPath)
+		return destFileFullPath, nil
+	}
+
 	sourceFile, err := os.Open(sourceFileFullPath)
 	if err != nil {
-		return "", fmt.Errorf("error opening the source file: %v", err)
+		return "", fmt.Errorf("error opening the source file %s: %w", sourceFileFullPath, err)
 	}
 	defer sourceFile.Close()
 
-	// Make sure the destination folder is created
-	err = os.MkdirAll(filepath.Dir(destFileFullPath), os.ModePerm)
-	if err != nil {
-		return "", fmt.Errorf("error creating the destination folder: %v", err)
+	if err = os.MkdirAll(filepath.Dir(destFileFullPath), os.ModePerm); err != nil {
+		return "", fmt.Errorf("error creating destination folder structure %s: %w", filepath.Dir(destFileFullPath), err)
 	}
 
 	destFile, err := os.Create(destFileFullPath)
 	if err != nil {
-		return "", fmt.Errorf("error creating the destination file: %v", err)
+		return "", fmt.Errorf("error creating destination file %s: %w", destFileFullPath, err)
 	}
 	defer destFile.Close()
 
 	_, err = io.Copy(destFile, sourceFile)
 	if err != nil {
-		return "", fmt.Errorf("error copying the file: %v", err)
+		if removeErr := os.Remove(destFileFullPath); removeErr != nil {
+			log.Printf("Warning: failed to remove partially written file %s after copy error: %v", destFileFullPath, removeErr)
+		}
+		return "", fmt.Errorf("error copying data from %s to %s: %w", sourceFileFullPath, destFileFullPath, err)
 	}
 
 	return destFileFullPath, nil
 }
 
-func makeFileName(artist string, album string, track string, trackNumber int, ext string, useFolders bool) string {
-	// Remove the invalid characters from the artist, album and track
-	artist = cleanup(artist)
-	album = cleanup(album)
-	track = cleanup(track)
-
-	// Build the new name
-	var newName string
-
-	if useFolders {
-		// Build the folder name
-		newName = filepath.Join(artist, album)
-		newName = filepath.Join(newName, fmt.Sprintf("%02d - %s%s", trackNumber, track, ext))
-	} else {
-		// Build the folder name
-		newName = fmt.Sprintf("%s - %s - %02d - %s%s", artist, album, trackNumber, track, ext)
+// MoveMusic copies a music file to a new location and then deletes the source file and prunes empty parent directories.
+// sourceLibraryRootDir specifies the root directory up to which parent directories of the source file may be pruned.
+// If dryRun is true, operations are logged but not executed.
+func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool, sourceLibraryRootDir string) (string, error) {
+	copiedFilePath, err := CopyMusic(sourceFileFullPath, destFolderPath, useFolders, dryRun)
+	if err != nil {
+		return copiedFilePath, err
 	}
 
-	// Build the file name
+	if dryRun {
+		log.Printf("[DRY-RUN] Source file %s would be deleted. Parent directory pruning up to %s would be simulated.", sourceFileFullPath, sourceLibraryRootDir)
+		actions, simErr := filesystem.DeleteFileAndPruneParents(sourceFileFullPath, sourceLibraryRootDir, true)
+		if simErr != nil {
+			log.Printf("[DRY-RUN] Error during simulated deletion of %s: %v", sourceFileFullPath, simErr)
+		}
+		if len(actions) > 0 {
+			log.Println("[DRY-RUN] Simulated delete actions:", actions)
+		} else if simErr == nil {
+			log.Println("[DRY-RUN] No simulated delete actions for", sourceFileFullPath)
+		}
+	} else {
+		log.Printf("Deleting source file %s and pruning parent directories up to %s.", sourceFileFullPath, sourceLibraryRootDir)
+		_, delErr := filesystem.DeleteFileAndPruneParents(sourceFileFullPath, sourceLibraryRootDir, false)
+		if delErr != nil {
+			log.Printf("Error deleting source file %s or pruning parents: %v. The file was successfully copied to %s.", sourceFileFullPath, delErr, copiedFilePath)
+		}
+	}
+	return copiedFilePath, nil
+}
+
+// makeFileName generates a filename string based on track metadata.
+// It uses the cleaned artist, album, title, track number, and original extension.
+// If useFolders is true, the format is "Artist/Album/TrackNum - Title.ext";
+// otherwise, it's "Artist - Album - TrackNum - Title.ext".
+func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
+	artist := cleanup(trackInfo.Artist)
+	album := cleanup(trackInfo.Album)
+	title := cleanup(trackInfo.Title)
+
+	var newName string
+	if useFolders {
+		newName = filepath.Join(artist, album, fmt.Sprintf("%02d - %s%s", trackInfo.TrackNumber, title, trackInfo.OriginalExtension))
+	} else {
+		newName = fmt.Sprintf("%s - %s - %02d - %s%s", artist, album, trackInfo.TrackNumber, title, trackInfo.OriginalExtension)
+	}
 	return newName
 }
 
+// cleanup sanitizes a string for use in file or directory names.
+// It trims whitespace, replaces reserved characters, performs specific substitutions (e.g., "feat." to "ft"),
+// removes non-printable ASCII characters, and applies title casing.
 func cleanup(s string) string {
+	s = strings.TrimSpace(s)
 
-	s = strings.Trim(s, " \t\n\r\"'")
+	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, char := range invalidChars {
+		s = strings.ReplaceAll(s, char, "-")
+	}
 
-	// Remove the invalid characters from the artist, album and track
-	s = strings.Replace(s, "/", "-", -1)
-	s = strings.Replace(s, "\\", "-", -1)
-	s = strings.Replace(s, ":", "-", -1)
-	s = strings.Replace(s, "*", "-", -1)
-	s = strings.Replace(s, "?", "-", -1)
-	s = strings.Replace(s, "\"", "-", -1)
-	s = strings.Replace(s, "<", "-", -1)
-	s = strings.Replace(s, ">", "-", -1)
-	s = strings.Replace(s, "|", "-", -1)
-	s = strings.Replace(s, "  ", " ", -1)
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
 
-	s = strings.Replace(s, "feat.", "ft", -1)
-	s = strings.Replace(s, "Feat.", "ft", -1)
-	s = strings.Replace(s, "Feat", "ft", -1)
-	s = strings.Replace(s, "Featuring", "ft", -1)
-	s = strings.Replace(s, "&", "and", -1)
+	for key, value := range specificSubstitutions {
+		s = strings.ReplaceAll(s, key, value)
+	}
 
-	// Remove any special characters
 	s = strings.Map(func(r rune) rune {
-		if r >= 32 && r <= 126 {
+		if r >= 32 && r <= 126 { // Printable ASCII range
 			return r
 		}
 		return -1
 	}, s)
 
-	// Finally, fix the capitalization to proper english title case
 	s = cases.Title(language.English).String(s)
-
 	return s
 }

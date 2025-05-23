@@ -1,10 +1,12 @@
+// Package cmd implements the command-line interface for the Muxic application.
+// It uses the Cobra library for command structure and parsing.
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"muxic/musicutils"
 	"muxic/movemusic"
+	"muxic/musicutils"
+	"muxic/pkg/filesystem"
 	"os"
 	"strconv"
 	"strings"
@@ -16,16 +18,15 @@ var destructive bool
 var verbose bool
 var dryRun bool
 
-// copyCmd represents the copy command
+// copyCmd represents the copy command, which handles both copying and moving of music files.
 var copyCmd = &cobra.Command{
 	Use:   "copy",
-	Short: "Copies all music files in a specified folder to a specified destination",
-	Long: `Copies all music files from a specified folder into a destination file folder using their
-mp3 tag information to create the appropriate folder layout. It also cleans up the capitalization and 
-removes any special characters from the file names.`,
+	Short: "Copies or moves music files to a specified destination, organizing them by metadata.",
+	Long: `Copies (or moves if --move is specified) music files from a source folder
+to a destination folder. It uses metadata (tags) to create an organized folder
+layout (Artist/Album/Track). File names are cleaned and standardized.
+The --dry-run flag simulates operations without making changes.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get the complete list of files from the source folder
-
 		sourceFolder := strings.Trim(cmd.Flag("source").Value.String(), " ")
 		targetFolder := strings.Trim(cmd.Flag("target").Value.String(), " ")
 		destructive = cmd.Flag("move").Value.String() == "true"
@@ -34,146 +35,100 @@ removes any special characters from the file names.`,
 		filter := strings.Trim(cmd.Flag("filter").Value.String(), " ")
 		maxMB, _ := strconv.Atoi(cmd.Flag("over").Value.String())
 
-		// Convert that to an int
+		operationType := "Copying"
+		if destructive {
+			operationType = "Moving"
+		}
 
 		if dryRun {
-			fmt.Println("Muxic: Dry-run mode enabled. No actual changes will be made.")
+			log.Println("Muxic: Dry-run mode enabled. No actual changes will be made.")
+			if verbose {
+				log.Printf("[DRY-RUN] Operation: %s", operationType)
+				log.Printf("[DRY-RUN] Source: %s", sourceFolder)
+				log.Printf("[DRY-RUN] Target: %s", targetFolder)
+				if filter != "" {
+					log.Printf("[DRY-RUN] Filter: %s", filter)
+				}
+				if maxMB > 0 {
+					log.Printf("[DRY-RUN] Over %d MB", maxMB)
+				}
+			}
+		} else {
+			log.Printf("Muxic: %s files from '%s' to '%s'.", operationType, sourceFolder, targetFolder)
 		}
 
-		if destructive && !dryRun { // Only print if not a dry run, dry run has its own message
-			fmt.Println("Muxic: Destructive mode is on. Source files will be deleted after copying.")
+		if !filesystem.FolderExists(targetFolder) {
+			if dryRun {
+				log.Printf("[DRY-RUN] Base target folder '%s' does not exist. Would attempt to create it.", targetFolder)
+			} else {
+				log.Printf("Base target folder '%s' does not exist. Creating it.", targetFolder)
+				if err := os.MkdirAll(targetFolder, os.ModePerm); err != nil {
+					log.Fatalf("Failed to create base target folder '%s': %v. Aborting.", targetFolder, err)
+					return
+				}
+			}
 		}
-
-		fmt.Println("Muxic: Scanning all files from: ", sourceFolder)
 
 		var allFiles []string
-
 		if filter != "" || maxMB > 0 {
-			fmt.Println("Muxic: Filtering files to those containing: ", filter, " and size > ", maxMB, "MB")
+			log.Printf("Muxic: Filtering files (filter: '%s', size > %dMB)...", filter, maxMB)
 			allFiles = musicutils.GetFilteredMusicFiles(sourceFolder, filter, maxMB)
 		} else {
+			log.Println("Muxic: Scanning all music files...")
 			allFiles = musicutils.GetAllMusicFiles(sourceFolder)
 		}
 
-		fmt.Println("Muxic: Found ", len(allFiles), " music files. Processing...")
+		log.Printf("Muxic: Found %d music files. Processing...", len(allFiles))
 
-		// Print all the files
+		processedCount := 0
+		errorCount := 0
+
 		for _, file := range allFiles {
-
-			if verbose || dryRun {
-				log.Println("Processing file: ", file)
-			}
-
-			// Check to see if the target folder exists and if not, create it
-			if !musicutils.FolderExists(targetFolder) {
+			if verbose {
 				if dryRun {
-					log.Println("[DRY-RUN] Would create target folder: ", targetFolder)
+					log.Printf("[DRY-RUN] Processing file: %s", file)
 				} else {
-					log.Println("Creating target folder: ", targetFolder)
-					err := os.MkdirAll(targetFolder, os.ModePerm)
-					if err != nil {
-						log.Println("Error creating target folder: ", err)
-						continue
-					}
+					log.Printf("Processing file: %s", file)
 				}
 			}
 
-			// Step 1: Move BuildDestinationFileName call up and handle its error
-			resultFileName, err := movemusic.BuildDestinationFileName(file, targetFolder, true)
-			if err != nil {
-				log.Printf("Error building destination file name for %s: %v. Skipping.", file, err)
-				continue
-			}
+			var resultFileName string
+			var err error
 
-			// Step 2 & 3: Update Dry-Run and Actual Copy Logic
-			if dryRun {
-				log.Printf("[DRY-RUN] Would attempt to process/copy music file '%s' to target folder '%s'\n", file, targetFolder)
-				// musicutils.FileExists is called based on the resultFileName determined above
-				if musicutils.FileExists(resultFileName) {
-					log.Printf("[DRY-RUN] File already exists at target path, would skip: %s\n", resultFileName)
-				} else {
-					log.Printf("[DRY-RUN] File does not exist at target path, would proceed with copy. Simulated target path would be: %s\n", resultFileName)
-				}
-				// Ensure err is nil for dry run logic continuation if BuildDestinationFileName didn't fail
-				err = nil 
+			useFolders := true // TODO: Consider making this a command-line flag if flexibility is needed.
+
+			if destructive {
+				resultFileName, err = movemusic.MoveMusic(file, targetFolder, useFolders, dryRun, sourceFolder)
 			} else {
-				// Actual copy logic: Step 3 continued
-				if musicutils.FileExists(resultFileName) {
-					log.Println("EXISTS: File already exists, skipping", resultFileName)
-					// Set err to nil as we are intentionally skipping; this avoids the generic error log later
-					err = nil 
-					continue 
-				} else {
-					// File does not exist, proceed with copy
-					// resultFileName will be reassigned by CopyMusic, which is intended.
-					resultFileName, err = movemusic.CopyMusic(file, targetFolder, true)
-				}
+				resultFileName, err = movemusic.CopyMusic(file, targetFolder, useFolders, dryRun)
 			}
 
-			// General error handling for CopyMusic or other issues (excluding ErrFileExists which is handled above)
 			if err != nil {
-				log.Println("Error processing file: ", err) // Updated to a more generic message
+				log.Printf("Error processing file %s: %v", file, err)
+				errorCount++
 				continue
 			}
 
 			if !dryRun {
-				log.Println("Finished: ", resultFileName)
+				log.Printf("Finished %s: %s -> %s", operationType, file, resultFileName)
+			} else {
+				log.Printf("[DRY-RUN] Simulated %s for: %s -> %s", strings.ToLower(operationType), file, resultFileName)
 			}
-
-			if destructive {
-				if dryRun {
-					if !strings.EqualFold(file, resultFileName) {
-						log.Println("[DRY-RUN] Would delete source file: ", file)
-						// Simulate the empty folder deletion logic of musicutils.DeleteFile
-						log.Println("[DRY-RUN] Would then check parent directories of", file, "for emptiness and potential deletion.")
-						// Simplified simulation of parent directory cleanup
-						// currentPath := file
-						// for {
-						// 	parentDir := filepath.Dir(currentPath)
-						// 	if parentDir == "." || parentDir == "/" || parentDir == filepath.Dir(sourceFolder) {
-						// 		break
-						// 	}
-						//  isEmpty, _ := musicutils.IsDirEmpty(parentDir) // This would be a real check
-						// 	log.Printf("[DRY-RUN] Would check if directory %s is empty. Simulated: true\n", parentDir)
-						// 	log.Printf("[DRY-RUN] Assuming directory %s is empty, would delete it.\n", parentDir)
-						// 	currentPath = parentDir
-						// 	if strings.EqualFold(parentDir, sourceFolder){ // Stop if we reach the source folder itself
-						//      break
-						//  }
-						// }
-					} else {
-						log.Println("[DRY-RUN] Source and (simulated) target are the same, would not delete: ", file)
-					}
-				} else {
-					// Original destructive logic
-					if !strings.EqualFold(file, resultFileName) {
-						log.Println("Deleting source file: ", file)
-						musicutils.DeleteFile(file) // This still performs actual deletions
-					}
-				}
-			}
+			processedCount++
 		}
+		log.Printf("Muxic: Processing complete. %d files processed, %d errors.", processedCount, errorCount)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(copyCmd)
 
-	// Here you will define your flags and configuration settings.
+	copyCmd.Flags().String("source", "", "The source folder containing music files.")
+	copyCmd.Flags().String("target", "", "The destination folder where music files will be organized.")
+	copyCmd.Flags().String("filter", "", "Filter files by a string contained in their path (case-insensitive).")
+	copyCmd.Flags().Int("over", 0, "Only process files over this size in megabytes (MB).")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// copyCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	copyCmd.Flags().String("source", "", "The source folder name")
-	copyCmd.Flags().String("target", "", "The destination folder name")
-	copyCmd.Flags().String("filter", "", "Filter the files to copy by name. Case insensitive.")
-	copyCmd.Flags().Int("over", 0, "Only copy files over this size.")
-
-	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move, don't copy -- delete the source file after copying")
-	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Log everything.")
-	copyCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Report actions that would be taken without executing them.")
-
+	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move files instead of copying (deletes source files and empty parent dirs).")
+	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for detailed operation output.")
+	copyCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Simulate operations without making any changes to the file system.")
 }
