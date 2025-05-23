@@ -26,6 +26,7 @@ muxic copy --source <source_directory> --target <target_directory> [flags]
 *   `--over` (int, optional): Filters music files by size. Only files larger than the specified size in megabytes (MB) will be processed. Defaults to 0 (no size restriction).
 *   `--move` or `-m` (boolean, optional): If set to `true`, the application will delete the original source file after a successful copy. This effectively "moves" the file. Default is `false` (standard copy).
 *   `--verbose` or `-v` (boolean, optional): If set to `true`, the application will output detailed logs of its operations, including each file being processed and any errors encountered. Default is `false`.
+*   `--dry-run` or `-n` (boolean, optional): If set to `true`, the application will report all actions it *would* take (like scanning, copying, moving, deleting) without actually performing any file system modifications. This is useful for previewing changes. When `--dry-run` is active, verbose-like logging is implicitly enabled for reported actions. When used with `--move`, it will report which files would be copied and then which original files (and possibly empty parent directories) would be deleted.
 
 **Behavior:**
 

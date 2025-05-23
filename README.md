@@ -43,6 +43,7 @@ muxic copy --source <source_directory> --target <target_directory> [flags]
     *   Example: `muxic copy --source ./unsorted --target ./sorted --move`
 *   `-v`, `--verbose`: (Optional) Enable detailed logging of all actions.
     *   Example: `muxic copy --source ./downloads --target ./MusicLib --verbose`
+*   `-n`, `--dry-run`: (Optional) Report actions that would be taken without executing them. This allows you to see which files would be copied, moved, or deleted, and where they would go, without making any actual changes to your file system. Useful for previewing operations.
 
 ### Examples:
 
@@ -64,6 +65,8 @@ muxic copy --source <source_directory> --target <target_directory> [flags]
     muxic copy --source ./ripped_cds --target ./lossless_collection --filter .flac --over 10
     ```
     *(Note: The current filter is by full path; a dedicated extension filter could be a future enhancement.)*
+
+**Pro Tip:** Add the `--dry-run` or `-n` flag to any of these commands to see what would happen before committing to the changes!
 
 ## Contributing
 
