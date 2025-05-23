@@ -115,3 +115,17 @@ func DeleteFile(file string) {
 		dir = filepath.Dir(dir)
 	}
 }
+
+// SanitizeFileName is a placeholder for sanitizing file names.
+// TODO: Implement actual sanitization logic.
+func SanitizeFileName(fileName string) string {
+	// Placeholder: return the original name for now
+	return fileName
+}
+
+// EnsureUniqueFilename is a placeholder for ensuring file name uniqueness.
+// TODO: Implement actual uniqueness check and modification logic.
+func EnsureUniqueFilename(filePath string) string {
+	// Placeholder: return the original path for now
+	return filePath
+}
