@@ -17,16 +17,10 @@ import (
 
 var ErrFileExists = errors.New("file already exists")
 
-func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool) (string, error) {
-
+func BuildDestinationFileName( sourceFileFullPath string, destFullPath string, useFolders bool ) ( string, error ) {
 	// Check if the source file exists
 	if _, err := os.Stat(sourceFileFullPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("source file does not exist")
-	}
-
-	// Check if the destination folder exists
-	if _, err := os.Stat(destFolderPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("destination folder does not exist")
 	}
 
 	// Get the mp3, flac or wav file details from the file
@@ -79,7 +73,28 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 	}
 
 	// Build the destination file path
-	destFileFullPath := filepath.Join(destFolderPath, newName)
+	destFileFullPath := filepath.Join(destFullPath, newName)
+
+	return destFileFullPath, nil
+}
+
+func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool) (string, error) {
+
+	// Check if the source file exists
+	if _, err := os.Stat(sourceFileFullPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("source file does not exist")
+	}
+
+	// Check if the destination folder exists
+	if _, err := os.Stat(destFolderPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("destination folder does not exist")
+	}
+
+	destFileFullPath, err := BuildDestinationFileName( sourceFileFullPath, destFolderPath, useFolders )
+
+	if err != nil {
+		return "", err
+	}
 
 	// Check if the destination file exists
 	if _, err := os.Stat(destFileFullPath); err == nil {

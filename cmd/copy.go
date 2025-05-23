@@ -83,16 +83,13 @@ removes any special characters from the file names.`,
 
 			if dryRun {
 				log.Printf("[DRY-RUN] Would attempt to process/copy music file '%s' to target folder '%s'\n", file, targetFolder)
-				// Simulate what movemusic.CopyMusic does for path generation for logging purposes
-				// This is a simplified simulation.
-				// Assuming basic "Artist/Album/Filename" structure for simulation.
-				// Actual library might have more complex logic for tag reading and sanitization.
-				artist := "SIMULATED_ARTIST"
-				album := "SIMULATED_ALBUM"
-				baseName := musicutils.SanitizeFileName(file) // Use existing sanitization for basename
-				resultFileName = musicutils.EnsureUniqueFilename(targetFolder + "/" + artist + "/" + album + "/" + baseName)
+				resultFileName, err = movemusic.BuildDestinationFileName( file, targetFolder, true )
 
-				log.Printf("[DRY-RUN] Simulated target path would be approximately: %s\n", resultFileName)
+				if err != nil {
+					log.Printf( "[DRY-RUN] There was an error building the file name.")
+				}
+
+				log.Printf("[DRY-RUN] Simulated target path would be: %s\n", resultFileName)
 				// Simulate checking for existing file - for now, assume it doesn't exist to show full dry-run path
 				// if musicutils.FileExists(resultFileName) { err = movemusic.ErrFileExists } else { err = nil }
 				err = nil
