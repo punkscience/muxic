@@ -78,31 +78,41 @@ removes any special characters from the file names.`,
 				}
 			}
 
-			var resultFileName string
-			var err error
-
-			if dryRun {
-				log.Printf("[DRY-RUN] Would attempt to process/copy music file '%s' to target folder '%s'\n", file, targetFolder)
-				resultFileName, err = movemusic.BuildDestinationFileName( file, targetFolder, true )
-
-				if err != nil {
-					log.Printf( "[DRY-RUN] There was an error building the file name.")
-				}
-
-				log.Printf("[DRY-RUN] Simulated target path would be: %s\n", resultFileName)
-				// Simulate checking for existing file - for now, assume it doesn't exist to show full dry-run path
-				// if musicutils.FileExists(resultFileName) { err = movemusic.ErrFileExists } else { err = nil }
-				err = nil
-			} else {
-				resultFileName, err = movemusic.CopyMusic(file, targetFolder, true)
+			// Step 1: Move BuildDestinationFileName call up and handle its error
+			resultFileName, err := movemusic.BuildDestinationFileName(file, targetFolder, true)
+			if err != nil {
+				log.Printf("Error building destination file name for %s: %v. Skipping.", file, err)
+				continue
 			}
 
-			if err != nil {
-				if err == movemusic.ErrFileExists {
-					log.Println("EXISTS: File already exists, skipping ", file)
+			// Step 2 & 3: Update Dry-Run and Actual Copy Logic
+			if dryRun {
+				log.Printf("[DRY-RUN] Would attempt to process/copy music file '%s' to target folder '%s'\n", file, targetFolder)
+				// musicutils.FileExists is called based on the resultFileName determined above
+				if musicutils.FileExists(resultFileName) {
+					log.Printf("[DRY-RUN] File already exists at target path, would skip: %s\n", resultFileName)
 				} else {
-					log.Println("Error copying file: ", err)
+					log.Printf("[DRY-RUN] File does not exist at target path, would proceed with copy. Simulated target path would be: %s\n", resultFileName)
 				}
+				// Ensure err is nil for dry run logic continuation if BuildDestinationFileName didn't fail
+				err = nil 
+			} else {
+				// Actual copy logic: Step 3 continued
+				if musicutils.FileExists(resultFileName) {
+					log.Println("EXISTS: File already exists, skipping", resultFileName)
+					// Set err to nil as we are intentionally skipping; this avoids the generic error log later
+					err = nil 
+					continue 
+				} else {
+					// File does not exist, proceed with copy
+					// resultFileName will be reassigned by CopyMusic, which is intended.
+					resultFileName, err = movemusic.CopyMusic(file, targetFolder, true)
+				}
+			}
+
+			// General error handling for CopyMusic or other issues (excluding ErrFileExists which is handled above)
+			if err != nil {
+				log.Println("Error processing file: ", err) // Updated to a more generic message
 				continue
 			}
 
