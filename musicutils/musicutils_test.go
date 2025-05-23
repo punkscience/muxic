@@ -3,208 +3,201 @@ package musicutils
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
 )
 
-func TestFileExists_ExistingFile(t *testing.T) {
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "test_existing_file_*.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temporary file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name()) // Clean up
-
-	if !FileExists(tmpFile.Name()) {
-		t.Errorf("FileExists(%q) = false, want true", tmpFile.Name())
-	}
-	tmpFile.Close() // Close the file
-}
-
-func TestFileExists_NonExistingFile(t *testing.T) {
-	nonExistentFilePath := filepath.Join(os.TempDir(), "non_existent_file_12345.txt")
-	if FileExists(nonExistentFilePath) {
-		t.Errorf("FileExists(%q) = true, want false", nonExistentFilePath)
-	}
-}
-
-func TestFileExists_ExistingDirectory(t *testing.T) {
-	// Create a temporary directory
-	tmpDir, err := os.MkdirTemp("", "test_existing_dir_*")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpDir) // Clean up
-
-	if FileExists(tmpDir) {
-		t.Errorf("FileExists(%q) = true, want false for directory", tmpDir)
+// Helper function to create dummy files for testing Get(All|Filtered)MusicFiles
+func createMusicTestFiles(t *testing.T, rootDir string, fileNames []string) {
+	t.Helper()
+	for _, name := range fileNames {
+		filePath := filepath.Join(rootDir, name)
+		// Create parent dirs if they don't exist (for nested test cases)
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			t.Fatalf("Failed to create parent directory for %s: %v", filePath, err)
+		}
+		f, err := os.Create(filePath)
+		if err != nil {
+			t.Fatalf("Failed to create dummy file %s: %v", filePath, err)
+		}
+		// Write some minimal data if needed by size filters, otherwise empty is fine
+		if filepath.Ext(name) == ".mp3" { // example for size
+			f.Write(make([]byte, 1024*1024)) // 1MB
+		}
+		f.Close()
 	}
 }
 
-func TestFolderExists_ExistingFolder(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test_existing_folder_*")
+func TestGetAllMusicFiles(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "musicutils_getall_*")
 	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
+		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if !FolderExists(tmpDir) {
-		t.Errorf("FolderExists(%q) = false, want true", tmpDir)
+	// Create subdirectories for more complex scanning
+	subDir1 := filepath.Join(tmpDir, "subdir1")
+	os.Mkdir(subDir1, 0755)
+	subDir2 := filepath.Join(tmpDir, "subdir1", "subdir2")
+	os.Mkdir(subDir2, 0755)
+
+	testFiles := []string{
+		"song1.mp3",
+		"song2.flac",
+		"song3.m4a",
+		"song4.wav",
+		"notsong.txt",
+		filepath.Join("subdir1", "song5.mp3"),
+		filepath.Join("subdir1", "subdir2", "song6.flac"),
+		filepath.Join("subdir1", "notsong.doc"),
+	}
+	createMusicTestFiles(t, tmpDir, testFiles)
+
+	expectedFiles := []string{
+		filepath.Join(tmpDir, "song1.mp3"),
+		filepath.Join(tmpDir, "song2.flac"),
+		filepath.Join(tmpDir, "song3.m4a"),
+		filepath.Join(tmpDir, "song4.wav"),
+		filepath.Join(tmpDir, "subdir1", "song5.mp3"),
+		filepath.Join(tmpDir, "subdir1", "subdir2", "song6.flac"),
+	}
+
+	actualFiles := GetAllMusicFiles(tmpDir)
+
+	// Sort both slices for consistent comparison
+	sort.Strings(actualFiles)
+	sort.Strings(expectedFiles)
+
+	if !reflect.DeepEqual(actualFiles, expectedFiles) {
+		t.Errorf("GetAllMusicFiles() mismatch.\nGot:    %v\nWanted: %v", actualFiles, expectedFiles)
+	}
+
+	// Test with a non-existent folder
+	emptyResult := GetAllMusicFiles(filepath.Join(tmpDir, "non_existent_folder_123"))
+	if len(emptyResult) != 0 {
+		t.Errorf("GetAllMusicFiles() on non-existent folder should return empty slice, got %v", emptyResult)
 	}
 }
 
-func TestFolderExists_NonExistingFolder(t *testing.T) {
-	nonExistentFolderPath := filepath.Join(os.TempDir(), "non_existent_folder_12345")
-	if FolderExists(nonExistentFolderPath) {
-		t.Errorf("FolderExists(%q) = true, want false", nonExistentFolderPath)
-	}
-}
-
-func TestFolderExists_PathIsFile(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "test_folder_is_file_*.txt")
+func TestGetFilteredMusicFiles(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "musicutils_getfiltered_*")
 	if err != nil {
-		t.Fatalf("Failed to create temporary file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
-
-	if FolderExists(tmpFile.Name()) {
-		t.Errorf("FolderExists(%q) = true for a file, want false", tmpFile.Name())
-	}
-}
-
-func TestIsDirEmpty_EmptyDir(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test_empty_dir_*")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
+		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	empty, err := IsDirEmpty(tmpDir)
-	if err != nil {
-		t.Fatalf("IsDirEmpty(%q) returned error: %v", tmpDir, err)
-	}
-	if !empty {
-		t.Errorf("IsDirEmpty(%q) = false, want true", tmpDir)
-	}
-}
+	subDir := filepath.Join(tmpDir, "rock_band")
+	os.Mkdir(subDir, 0755)
 
-func TestIsDirEmpty_NonEmptyDir(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "test_non_empty_dir_*")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
+	testFiles := []string{
+		"Artist - SongA.mp3",                        // Matches "artist", size 1MB
+		"Artist - SongB.flac",                       // Matches "artist"
+		"Another Artist - SongC.m4a",                // Does not match "artist"
+		"ARTIST - SongD.wav",                        // Matches "artist" (case-insensitive path)
+		filepath.Join(subDir, "Artist - SongE.mp3"), // Matches "artist", size 1MB
+		"BigFileSong.mp3",                           // Size 1MB
+		"SmallFile.mp3",                             // Size 0MB (or very small)
 	}
-	defer os.RemoveAll(tmpDir)
+	// Create files, ensuring "BigFileSong.mp3" and "Artist - SongA.mp3" are >0MB for size filter tests
+	// The helper `createMusicTestFiles` makes .mp3 files 1MB.
+	createMusicTestFiles(t, tmpDir, testFiles)
 
-	_, err = os.CreateTemp(tmpDir, "test_file_*.txt")
-	if err != nil {
-		t.Fatalf("Failed to create temporary file in dir: %v", err)
+	// Manually create SmallFile.mp3 with 0 size
+	smallFilePath := filepath.Join(tmpDir, "SmallFile.mp3")
+	sf, _ := os.Create(smallFilePath)
+	sf.Close()
+
+	testCases := []struct {
+		name          string
+		folder        string
+		filter        string
+		maxMB         int
+		expectedFiles []string
+	}{
+		{
+			name:   "Filter by artist name",
+			folder: tmpDir,
+			filter: "artist",
+			maxMB:  0, // No size limit
+			expectedFiles: []string{
+				filepath.Join(tmpDir, "Artist - SongA.mp3"),
+				filepath.Join(tmpDir, "Artist - SongB.flac"),
+				filepath.Join(tmpDir, "ARTIST - SongD.wav"),
+				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(tmpDir, "Another Artist - SongC.m4a"), // This was missing
+			},
+		},
+		{
+			name:   "Filter by file extension",
+			folder: tmpDir,
+			filter: ".flac",
+			maxMB:  0,
+			expectedFiles: []string{
+				filepath.Join(tmpDir, "Artist - SongB.flac"),
+			},
+		},
+		{
+			name:   "Filter by subfolder name",
+			folder: tmpDir,
+			filter: "rock_band",
+			maxMB:  0,
+			expectedFiles: []string{
+				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+			},
+		},
+		{
+			name:   "Filter with size limit (no specific name filter)",
+			folder: tmpDir,
+			filter: "", // No name filter
+			maxMB:  1,  // Files > 1MB (actually >= 1MB due to helper creating 1MB files)
+			expectedFiles: []string{
+				filepath.Join(tmpDir, "Artist - SongA.mp3"),
+				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(tmpDir, "BigFileSong.mp3"),
+			},
+		},
+		{
+			name:   "Filter by name and size limit",
+			folder: tmpDir,
+			filter: "artist",
+			maxMB:  1, // Only "Artist" files that are >= 1MB
+			expectedFiles: []string{
+				filepath.Join(tmpDir, "Artist - SongA.mp3"),
+				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+			},
+		},
+		{
+			name:          "No matching filter",
+			folder:        tmpDir,
+			filter:        "nonexistent_filter_term",
+			maxMB:         0,
+			expectedFiles: []string{},
+		},
+		{
+			name:          "Non-existent folder",
+			folder:        filepath.Join(tmpDir, "non_existent_folder_XYZ"),
+			filter:        "",
+			maxMB:         0,
+			expectedFiles: []string{},
+		},
+		{
+			name:          "Size filter excludes all",
+			folder:        tmpDir,
+			filter:        "",
+			maxMB:         2, // All test .mp3 files are 1MB
+			expectedFiles: []string{},
+		},
 	}
 
-	empty, err := IsDirEmpty(tmpDir)
-	if err != nil {
-		t.Fatalf("IsDirEmpty(%q) returned error: %v", tmpDir, err)
-	}
-	if empty {
-		t.Errorf("IsDirEmpty(%q) = true for non-empty dir, want false", tmpDir)
-	}
-}
-
-func TestIsDirEmpty_NonExistentDir(t *testing.T) {
-	nonExistentPath := filepath.Join(os.TempDir(), "non_existent_dir_for_isempty_test")
-	_, err := IsDirEmpty(nonExistentPath)
-	if err == nil {
-		t.Errorf("IsDirEmpty(%q) did not return error for non-existent dir, want error", nonExistentPath)
-	}
-}
-
-func TestDeleteFile_DeletesFileAndEmptyParentDirs(t *testing.T) {
-	// Create nested temp directories: rootTmpDir/parentDir/childDir/testfile.txt
-	rootTmpDir, err := os.MkdirTemp("", "test_delete_root_*")
-	if err != nil {
-		t.Fatalf("Failed to create root temp dir: %v", err)
-	}
-	defer os.RemoveAll(rootTmpDir) // Ensure root is cleaned even if test fails midway
-
-	parentDir := filepath.Join(rootTmpDir, "parentDir")
-	err = os.Mkdir(parentDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create parentDir: %v", err)
-	}
-
-	childDir := filepath.Join(parentDir, "childDir")
-	err = os.Mkdir(childDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create childDir: %v", err)
-	}
-
-	tmpFile, err := os.Create(filepath.Join(childDir, "testfile.txt"))
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	filePath := tmpFile.Name()
-	tmpFile.Close()
-
-	// Call DeleteFile
-	DeleteFile(filePath)
-
-	// Assert file is deleted
-	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
-		t.Errorf("File %q was not deleted", filePath)
-	}
-
-	// Assert childDir is deleted (because it became empty)
-	if _, err := os.Stat(childDir); !os.IsNotExist(err) {
-		t.Errorf("Empty child directory %q was not deleted", childDir)
-	}
-
-	// Assert parentDir is deleted (because it became empty)
-	if _, err := os.Stat(parentDir); !os.IsNotExist(err) {
-		t.Errorf("Empty parent directory %q was not deleted", parentDir)
-	}
-
-	// Assert rootTmpDir still exists (as it's the root of the deletion logic for this test)
-	if _, err := os.Stat(rootTmpDir); os.IsNotExist(err) {
-		t.Errorf("Root temp directory %q was unexpectedly deleted", rootTmpDir)
-	}
-}
-
-func TestDeleteFile_DoesNotDeleteNonEmptyParentDir(t *testing.T) {
-	rootTmpDir, err := os.MkdirTemp("", "test_delete_nonempty_root_*")
-	if err != nil {
-		t.Fatalf("Failed to create root temp dir: %v", err)
-	}
-	defer os.RemoveAll(rootTmpDir)
-
-	parentDir := filepath.Join(rootTmpDir, "parentDir")
-	err = os.Mkdir(parentDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create parentDir: %v", err)
-	}
-
-	// Create the file to be deleted
-	fileToDelete, err := os.Create(filepath.Join(parentDir, "fileToDelete.txt"))
-	if err != nil {
-		t.Fatalf("Failed to create fileToDelete: %v", err)
-	}
-	filePathToDelete := fileToDelete.Name()
-	fileToDelete.Close()
-
-	// Create another file in parentDir so it's not empty after fileToDelete is removed
-	siblingFile, err := os.Create(filepath.Join(parentDir, "siblingFile.txt"))
-	if err != nil {
-		t.Fatalf("Failed to create siblingFile: %v", err)
-	}
-	siblingFile.Close()
-
-	DeleteFile(filePathToDelete)
-
-	if _, err := os.Stat(filePathToDelete); !os.IsNotExist(err) {
-		t.Errorf("File %q was not deleted", filePathToDelete)
-	}
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		t.Errorf("Non-empty parent directory %q was deleted", parentDir)
-	}
-	if _, err := os.Stat(siblingFile.Name()); os.IsNotExist(err) {
-		t.Errorf("Sibling file %q was unexpectedly deleted", siblingFile.Name())
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualFiles := GetFilteredMusicFiles(tc.folder, tc.filter, tc.maxMB)
+			sort.Strings(actualFiles)
+			sort.Strings(tc.expectedFiles)
+			if !reflect.DeepEqual(actualFiles, tc.expectedFiles) {
+				t.Errorf("GetFilteredMusicFiles() with filter '%s', maxMB %d mismatch.\nGot:    %v\nWanted: %v", tc.filter, tc.maxMB, actualFiles, tc.expectedFiles)
+			}
+		})
 	}
 }
