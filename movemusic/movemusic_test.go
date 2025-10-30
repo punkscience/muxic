@@ -56,9 +56,10 @@ func TestCleanup(t *testing.T) {
 		{"Feat. variants", "Artist Feat. Other", "Artist Ft Other"}, // Correctly derived
 		{"Feat variants", "Artist Feat Other", "Artist Ft Other"},
 		{"Featuring variants", "Artist Featuring Other", "Artist Ft Other"}, // Correctly derived
-		{"ampersand", "A & B", "A And B"},                                   // Title case "and"
-		{"non-ascii", "Artîst Ñame", "Artst Ame"},                           // Non-ASCII removed, then title cased
-		{"long string", strings.Repeat("a", 5), "Aaaaa"},                    // Title case a single word
+		{"ampersand", "A & B", "A And B"}, // Title case "and"
+		{"transliteration", "Akkya x Xiûa - Energy", "Akkya X Xiua - Energy"},
+		{"non-ascii", "Artîst Ñame", "Artist Name"}, // Non-ASCII removed, then title cased
+		{"long string", strings.Repeat("a", 5), "Aaaaa"}, // Title case a single word
 		{"combined", "  A/B:C*D?E\"F<G>H|I  J feat. K  ", "A-B-C-D-E-F-G-H-I J Ft K"},
 		{"title casing", "a lower case title", "A Lower Case Title"},
 		{"title casing with ft", "a lower case title ft another", "A Lower Case Title Ft Another"},
