@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fiam/gounidecode/unidecode"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -149,9 +150,10 @@ func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
 
 // cleanup sanitizes a string for use in file or directory names.
 // It trims whitespace, replaces reserved characters, performs specific substitutions (e.g., "feat." to "ft"),
-// removes non-printable ASCII characters, and applies title casing.
+// and applies title casing. It also transliterates any non-ASCII characters to their closest ASCII equivalent.
 func cleanup(s string) string {
 	s = strings.TrimSpace(s)
+	s = unidecode.Unidecode(s)
 
 	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
 	for _, char := range invalidChars {
@@ -165,13 +167,6 @@ func cleanup(s string) string {
 	for key, value := range specificSubstitutions {
 		s = strings.ReplaceAll(s, key, value)
 	}
-
-	s = strings.Map(func(r rune) rune {
-		if r >= 32 && r <= 126 { // Printable ASCII range
-			return r
-		}
-		return -1
-	}, s)
 
 	s = cases.Title(language.English).String(s)
 	return s
