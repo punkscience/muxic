@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/hcl/audioduration"
 )
 
 // GetAllMusicFiles returns a list of all music files in the specified folder.
@@ -33,10 +35,49 @@ func GetAllMusicFiles(folder string) []string {
 	return files
 }
 
+// hasSufficientDuration checks if a music file's duration is greater than or equal to a minimum value.
+// It returns true if the duration is sufficient or if minDuration is 0 (no filter).
+func hasSufficientDuration(path string, minDuration int) bool {
+	if minDuration <= 0 {
+		return true // No duration filter, so always pass
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		log.Printf("Could not open file %s: %v", path, err)
+		return false
+	}
+	defer file.Close()
+
+	var fileType int
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mp3":
+		fileType = audioduration.TypeMp3
+	case ".flac":
+		fileType = audioduration.TypeFlac
+	case ".m4a":
+		fileType = audioduration.TypeMp4
+	case ".wav":
+		// The library does not support wav files, so we can't determine duration
+		return false
+	default:
+		// Unsupported file type for duration check
+		return false
+	}
+
+	duration, err := audioduration.Duration(file, fileType)
+	if err != nil {
+		log.Printf("Could not get duration for %s: %v", path, err)
+		return false // Exclude files where duration can't be determined
+	}
+
+	return int(duration/60) >= minDuration
+}
+
 // GetFilteredMusicFiles returns a list of all music files in the specified folder
 // that match the filter string (case-insensitive, path-based) and are larger than maxMB (if maxMB > 0).
 // It supports .mp3, .flac, .m4a, and .wav files.
-func GetFilteredMusicFiles(folder string, filter string, maxMB int) []string {
+func GetFilteredMusicFiles(folder string, filter string, maxMB int, minDuration int) []string {
 	files := make([]string, 0) // Initialize as non-nil empty slice
 	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
 		if err == nil {
@@ -44,15 +85,16 @@ func GetFilteredMusicFiles(folder string, filter string, maxMB int) []string {
 				strings.HasSuffix(info.Name(), ".flac") ||
 				strings.HasSuffix(info.Name(), ".m4a") ||
 				strings.HasSuffix(info.Name(), ".wav")) {
-				if strings.Contains(strings.ToLower(path), strings.ToLower(filter)) {
-					if maxMB > 0 {
-						if info.Size() >= int64(maxMB*1024*1024) {
-							files = append(files, path)
-						}
-					} else { // maxMB == 0, so no size filtering
-						files = append(files, path)
-					}
+				if !strings.Contains(strings.ToLower(path), strings.ToLower(filter)) {
+					return nil
 				}
+				if maxMB > 0 && info.Size() < int64(maxMB*1024*1024) {
+					return nil
+				}
+				if !hasSufficientDuration(path, minDuration) {
+					return nil
+				}
+				files = append(files, path)
 			}
 		}
 		return err
