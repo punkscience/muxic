@@ -113,6 +113,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 		folder        string
 		filter        string
 		maxMB         int
+		minDuration   int
 		expectedFiles []string
 	}{
 		{
@@ -120,6 +121,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder: tmpDir,
 			filter: "artist",
 			maxMB:  0, // No size limit
+			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
 				filepath.Join(tmpDir, "Artist - SongB.flac"),
@@ -133,6 +135,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder: tmpDir,
 			filter: ".flac",
 			maxMB:  0,
+			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongB.flac"),
 			},
@@ -142,6 +145,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder: tmpDir,
 			filter: "rock_band",
 			maxMB:  0,
+			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
 			},
@@ -151,6 +155,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder: tmpDir,
 			filter: "", // No name filter
 			maxMB:  1,  // Files > 1MB (actually >= 1MB due to helper creating 1MB files)
+			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
 				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
@@ -162,6 +167,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder: tmpDir,
 			filter: "artist",
 			maxMB:  1, // Only "Artist" files that are >= 1MB
+			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
 				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
@@ -172,6 +178,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        tmpDir,
 			filter:        "nonexistent_filter_term",
 			maxMB:         0,
+			minDuration: 0,
 			expectedFiles: []string{},
 		},
 		{
@@ -179,6 +186,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        filepath.Join(tmpDir, "non_existent_folder_XYZ"),
 			filter:        "",
 			maxMB:         0,
+			minDuration: 0,
 			expectedFiles: []string{},
 		},
 		{
@@ -186,13 +194,14 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        tmpDir,
 			filter:        "",
 			maxMB:         2, // All test .mp3 files are 1MB
+			minDuration: 0,
 			expectedFiles: []string{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualFiles := GetFilteredMusicFiles(tc.folder, tc.filter, tc.maxMB)
+			actualFiles := GetFilteredMusicFiles(tc.folder, tc.filter, tc.maxMB, tc.minDuration)
 			sort.Strings(actualFiles)
 			sort.Strings(tc.expectedFiles)
 			if !reflect.DeepEqual(actualFiles, tc.expectedFiles) {

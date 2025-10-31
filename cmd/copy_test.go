@@ -65,6 +65,7 @@ func setupCobra() {
 	copyCmd.Flags().String("target", "", "The destination folder where music files will be organized.")
 	copyCmd.Flags().String("filter", "", "Filter files by a string contained in their path (case-insensitive).")
 	copyCmd.Flags().Int("over", 0, "Only process files over this size in megabytes (MB).")
+	copyCmd.Flags().Int("duration", 0, "Only process files with a duration in minutes greater than or equal to this value.")
 	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move files instead of copying (deletes source files and empty parent dirs).")
 	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for detailed operation output.")
 	copyCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Simulate operations without making any changes to the file system.")
