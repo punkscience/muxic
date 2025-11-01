@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hcl/audioduration"
+	taglib "go.senan.xyz/taglib"
 )
 
 // GetAllMusicFiles returns a list of all music files in the specified folder.
@@ -42,36 +42,13 @@ func hasSufficientDuration(path string, minDuration int) bool {
 		return true // No duration filter, so always pass
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		log.Printf("Could not open file %s: %v", path, err)
-		return false
-	}
-	defer file.Close()
-
-	var fileType int
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".mp3":
-		fileType = audioduration.TypeMp3
-	case ".flac":
-		fileType = audioduration.TypeFlac
-	case ".m4a":
-		fileType = audioduration.TypeMp4
-	case ".wav":
-		// The library does not support wav files, so we can't determine duration
-		return false
-	default:
-		// Unsupported file type for duration check
-		return false
-	}
-
-	duration, err := audioduration.Duration(file, fileType)
+	properties, err := taglib.ReadProperties(path)
 	if err != nil {
 		log.Printf("Could not get duration for %s: %v", path, err)
 		return false // Exclude files where duration can't be determined
 	}
 
-	return int(duration/60) >= minDuration
+	return int(properties.Length.Minutes()) >= minDuration
 }
 
 // GetFilteredMusicFiles returns a list of all music files in the specified folder
