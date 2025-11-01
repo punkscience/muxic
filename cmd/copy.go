@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"errors"
 	"log"
 	"muxic/movemusic"
 	"muxic/musicutils"
@@ -108,8 +109,12 @@ The --dry-run flag simulates operations without making changes.`,
 			}
 
 			if err != nil {
-				log.Printf("Error processing file %s: %v", file, err)
-				errorCount++
+				if errors.Is(err, movemusic.ErrFileAlreadyExists) {
+					// This is not a critical error, just a skip. Do not increment errorCount.
+				} else {
+					log.Printf("Error processing file %s: %v", file, err)
+					errorCount++
+				}
 				continue
 			}
 

@@ -35,6 +35,22 @@ func createDummyFile(t *testing.T, dir string, fileName string, content string) 
 	return filePath
 }
 
+// Helper to create a dummy tagged file by copying test.mp3 and giving it a new name
+func createTaggedFile(t *testing.T, dir, newName string) string {
+	t.Helper()
+	filePath := filepath.Join(dir, newName)
+	content, err := ioutil.ReadFile("../testdata/test.mp3")
+	if err != nil {
+		t.Fatalf("Failed to read testdata/test.mp3: %v", err)
+	}
+	err = ioutil.WriteFile(filePath, content, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write tagged file to %s: %v", filePath, err)
+	}
+	return filePath
+}
+
+
 func TestCleanup(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -472,6 +488,17 @@ func TestMoveMusic(t *testing.T) {
 		// as it requires making os.Remove fail for specific paths, often due to permissions
 		// or the directory being a mount point, which is beyond typical unit test scope.
 		// The current implementation logs the deletion error but doesn't let MoveMusic fail for it.
+		{
+			name:                     "move already organized file, should not be deleted",
+			sourceFile:               createTaggedFile(t, tmpDestDir, "Test Artist - Test Album - 01 - Test Title.mp3"),
+			destFolder:               tmpDestDir,
+			useFolders:               false,
+			dryRun:                   false,
+			sourceRootForPrune:       tmpSourceDir,
+			expectedDestSubPath:      "Test Artist - Test Album - 01 - Test Title.mp3",
+			expectSourceFileExists:   true,
+			expectSourceParentPruned: nil,
+		},
 	}
 
 	for _, tt := range tests {

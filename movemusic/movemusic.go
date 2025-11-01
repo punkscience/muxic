@@ -4,6 +4,7 @@
 package movemusic
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +18,9 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
+
+// ErrFileAlreadyExists is returned when the destination file for a copy or move operation already exists.
+var ErrFileAlreadyExists = errors.New("file already exists")
 
 // specificSubstitutions holds rules for specific string replacements.
 // These are applied before general cleanup and title casing.
@@ -68,6 +72,20 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 		return "", fmt.Errorf("error suggesting destination path: %w", err)
 	}
 
+	// Check for self-move: if the source and calculated destination are the same file.
+	// This happens when running muxic on an already organized directory.
+	cleanSource, _ := filepath.Abs(sourceFileFullPath)
+	cleanDest, _ := filepath.Abs(destFileFullPath)
+	if cleanSource == cleanDest {
+		log.Printf("IDENTICAL: Source and destination are the same, skipping %s", sourceFileFullPath)
+		return destFileFullPath, ErrFileAlreadyExists
+	}
+
+	if filesystem.FileExists(destFileFullPath) {
+		log.Printf("EXISTS: File already exists, skipping %s", sourceFileFullPath)
+		return destFileFullPath, ErrFileAlreadyExists
+	}
+
 	if dryRun {
 		log.Printf("[DRY-RUN] Would copy %s to %s", sourceFileFullPath, destFileFullPath)
 		return destFileFullPath, nil
@@ -106,6 +124,9 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool, sourceLibraryRootDir string) (string, error) {
 	copiedFilePath, err := CopyMusic(sourceFileFullPath, destFolderPath, useFolders, dryRun)
 	if err != nil {
+		if errors.Is(err, ErrFileAlreadyExists) {
+			return copiedFilePath, nil // Not an error for move operation, just skip deleting
+		}
 		return copiedFilePath, err
 	}
 
