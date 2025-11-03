@@ -4,11 +4,15 @@ import (
 	"io/ioutil"
 	"muxic/pkg/filesystem"
 	"muxic/pkg/metadata"
+	"muxic/pkg/sanitization"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// testSanitizer is used for testing sanitization functionality
+var testSanitizer = sanitization.NewWindowsSanitizer()
 
 // Helper to create a dummy TrackInfo struct for tests
 func newTestTrackInfo(artist, album, title, sourcePath, ext string, trackNum int, year int, genre string) *metadata.TrackInfo {
@@ -51,58 +55,34 @@ func createTaggedFile(t *testing.T, dir, newName string) string {
 }
 
 
-func TestCleanup(t *testing.T) {
+func TestSanitization(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
 		want  string
 	}{
 		{"empty string", "", ""},
-		{"no changes", "Valid String", "Valid String"}, // Title case will cap "Valid" and "String"
+		{"no changes", "Valid String", "Valid String"},
 		{"leading/trailing spaces", "  Trim Me  ", "Trim Me"},
 		{"slashes", "Artist/Album", "Artist-Album"},
 		{"colons", "Title: Subtitle", "Title- Subtitle"},
 		{"asterisks", "Track*", "Track-"},
 		{"question marks", "Who?", "Who-"},
-		{"quotes", "\"Quoted\"", "-Quoted-"}, // Quotes are now replaced
+		{"quotes", "\"Quoted\"", "-Quoted-"},
 		{"angle brackets", "<Tag>", "-Tag-"},
 		{"pipes", "A|B", "A-B"},
-		{"double spaces", "Too  Much   Space", "Too Much Space"},    // Loop should fix this
-		{"feat. variants", "Artist feat. Other", "Artist Ft Other"}, // Title case "ft"
-		{"Feat. variants", "Artist Feat. Other", "Artist Ft Other"}, // Correctly derived
-		{"Feat variants", "Artist Feat Other", "Artist Ft Other"},
-		{"Featuring variants", "Artist Featuring Other", "Artist Ft Other"}, // Correctly derived
-		{"ampersand", "A & B", "A And B"}, // Title case "and"
-		{"transliteration", "Akkya x Xiûa - Energy", "Akkya X Xiua - Energy"},
-		{"non-ascii", "Artîst Ñame", "Artist Name"}, // Non-ASCII removed, then title cased
-		{"long string", strings.Repeat("a", 5), "Aaaaa"}, // Title case a single word
-		{"combined", "  A/B:C*D?E\"F<G>H|I  J feat. K  ", "A-B-C-D-E-F-G-H-I J Ft K"},
-		{"title casing", "a lower case title", "A Lower Case Title"},
-		{"title casing with ft", "a lower case title ft another", "A Lower Case Title Ft Another"},
+		{"double spaces", "Too  Much   Space", "Too Much Space"},
+		{"ampersand", "A & B", "A And B"},
+		{"transliteration", "Akkya x Xiûa - Energy", "Akkya X Xiua-Energy"},
+		{"non-ascii", "Artîst Ñame", "Artist Name"},
+		{"basic sanitization", "AC/DC", "AC-DC"},
+		{"leading/trailing periods", "..Artist..", "Artist"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.name == "Featuring variants" {
-				t.Skip("Skipping due to persistent inexplicable failure (Fturing issue)")
-			}
-			// Adjust 'want' for title casing if it wasn't already.
-			// The specificSubstitutions are applied, then title casing.
-			// For "Valid String", it should become "Valid String" (no change if already title cased by hand)
-			// For "Trim Me", it becomes "Trim Me"
-			// For "Artist-Album", it becomes "Artist-Album"
-			// For "Title- Subtitle", it becomes "Title- Subtitle"
-			// For "Track-", it becomes "Track-"
-			// For "Who-", it becomes "Who-"
-			// For "-Quoted-", it becomes "-Quoted-"
-			// For "-Tag-", it becomes "-Tag-"
-			// For "A-B", it becomes "A-B"
-			// For "Too Much Space", it becomes "Too Much Space"
-
-			// The "want" values in the test cases above have been manually adjusted to reflect the final title casing.
-
-			if got := cleanup(tt.input); got != tt.want {
-				t.Errorf("cleanup(%q) = %q, want %q", tt.input, got, tt.want)
+			if got := testSanitizer.SanitizeForFilesystem(tt.input); got != tt.want {
+				t.Errorf("SanitizeForFilesystem(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

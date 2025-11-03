@@ -44,7 +44,12 @@ muxic copy --source <source_directory> --target <target_directory> [flags]
     *   For each identified music file:
         *   The application attempts to read metadata tags (e.g., artist, album) from the file.
         *   It uses this metadata to determine the appropriate subdirectory structure within the `target` folder (e.g., `<target>/<Artist>/<Album>/<TrackNumber> - <Title>.<extension>`).
-        *   File names are sanitized: capitalization is standardized, and special characters are typically removed or replaced.
+        *   **✅ COMPLETED:** File names are sanitized for Windows filesystem compatibility using the `pkg/sanitization` package:
+            *   Prohibited Windows characters (`/`, `\`, `:`, `*`, `?`, `"`, `<`, `>`, `|`) are replaced with hyphens
+            *   Unicode and non-ASCII characters are converted to closest ASCII equivalents
+            *   Leading and trailing periods and spaces are trimmed from folder and file names
+            *   Common music abbreviations are standardized (e.g., "feat." → "ft", "&" → "and")
+            *   Title casing is applied while preserving intentional uppercase patterns
         *   The target directory structure is created if it doesn't already exist.
 
 4.  **File Transfer:**
@@ -79,7 +84,37 @@ The `musicutils/musicutils.go` package also provides utilities for:
 
 The actual file copying and metadata-based organization logic leverages the `github.com/punkscience/movemusic` library, specifically the `movemusic.CopyMusic` function.
 
-## 5. Error Handling and Logging
+## 5. Windows Filesystem Sanitization System ✅ COMPLETED
+
+The application includes a comprehensive sanitization system in `pkg/sanitization` that ensures all generated file and folder names are compatible with Windows filesystem requirements.
+
+### 5.1. Sanitization Features
+
+*   **Prohibited Character Replacement**: Windows-prohibited characters (`< > : " | ? * \ /`) are replaced with hyphens (`-`)
+*   **Unicode Normalization**: Non-ASCII characters are converted to closest ASCII equivalents using transliteration
+*   **Leading/Trailing Cleanup**: Periods and spaces are trimmed from the beginning and end of folder/file names  
+*   **Music-Specific Substitutions**: Common music abbreviations are standardized:
+    *   `feat.`, `Feat.`, `Feat`, `Featuring` → `ft`
+    *   `&` → `and`
+    *   `@` → `at`
+    *   `w/` → `with`
+    *   `vs.` → `versus`
+*   **Intelligent Title Casing**: Applies proper title casing while preserving intentional uppercase patterns (e.g., "AC/DC" becomes "AC-DC", not "Ac-Dc")
+*   **Space Normalization**: Multiple consecutive spaces are collapsed to single spaces
+
+### 5.2. Implementation
+
+The sanitization system follows SOLID principles with:
+*   `Sanitizer` interface for extensibility
+*   `WindowsSanitizer` implementation for Windows-specific rules
+*   Dependency injection allowing custom substitution rules
+*   Comprehensive test coverage matching the feature file specifications
+
+### 5.3. Integration
+
+The `movemusic` package uses the sanitization system via the `SanitizeTrackMetadata()` method to clean artist, album, and title metadata before generating file paths.
+
+## 6. Error Handling and Logging
 
 *   The application logs informational messages, warnings, and errors to standard output.
 *   Specific errors handled include:

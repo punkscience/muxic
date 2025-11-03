@@ -63,3 +63,53 @@ Feature: Filter Music Files
     Then the file "target_filter_move/Artist/Album/01 - filter_me.mp3" should exist
     And the source file "source_filter_move/filter_me.mp3" should not exist
     And the source file "source_filter_move/dont_filter.mp3" should still exist
+
+  Scenario: Filter with Windows filesystem sanitization - prohibited characters in metadata
+    Given a source directory "source_filter_sanitize" with the following music files:
+      | File Path           | Artist        | Album          | Title             |
+      | rock_song.mp3       | AC/DC         | Back\\Black    | Hells*Bells      |
+      | pop_song.flac       | Taylor/Swift  | 1989<Deluxe>   | Shake?It"Off     |
+      | jazz_track.wav      | Miles|Davis   | Kind:Of<Blue>  | So*What          |
+    And an empty target directory "target_filter_sanitize"
+    When I run the command "muxic copy --source source_filter_sanitize --target target_filter_sanitize --filter rock"
+    Then the file "target_filter_sanitize/AC-DC/Back-Black/01 - Hells-Bells.mp3" should exist
+    And the file "target_filter_sanitize/Taylor-Swift/1989-Deluxe-/01 - Shake-It-Off.flac" should not exist
+    And the file "target_filter_sanitize/Miles-Davis/Kind-Of-Blue-/01 - So-What.wav" should not exist
+    And the console output should contain "Filtering files to those containing: rock"
+
+  Scenario: Filter with Unicode character sanitization  
+    Given a source directory "source_filter_unicode" with the following music files:
+      | File Path         | Artist      | Album         | Title           |
+      | björk_song.mp3    | Björk       | Médulla       | Öll Birtan     |
+      | sigur_song.flac   | Sigur Rós   | Ágætis byrjun | Svefn-g-englar |
+      | chinese_song.wav  | 中文歌手     | 专辑名称       | 歌曲标题        |
+    And an empty target directory "target_filter_unicode"
+    When I run the command "muxic copy --source source_filter_unicode --target target_filter_unicode --filter björk"
+    Then the file "target_filter_unicode/Bjork/Medulla/01 - Oll Birtan.mp3" should exist
+    And the file "target_filter_unicode/Sigur Ros/Agaetis Byrjun/01 - Svefn-G-Englar.flac" should not exist
+    And the file "target_filter_unicode/Zhong Wen Ge Shou/Zhuan Ji Ming Cheng/01 - Ge Qu Biao Ti.wav" should not exist
+
+  Scenario: Filter with leading/trailing spaces and periods sanitization
+    Given a source directory "source_filter_trim" with the following music files:
+      | File Path        | Artist         | Album           | Title             |
+      | spaced_song.mp3  | " Rock Band "  | " Rock Album "  | " Rock Song "    |
+      | period_song.flac | "..Rock.Art.." | "..Rock.LP.."   | "..Rock.Track.." |
+      | mixed_song.wav   | ". Jazz . "    | ". Jazz LP . "  | ". Jazz Tune . " |
+    And an empty target directory "target_filter_trim"
+    When I run the command "muxic copy --source source_filter_trim --target target_filter_trim --filter rock"
+    Then the file "target_filter_trim/Rock Band/Rock Album/01 - Rock Song.mp3" should exist
+    And the file "target_filter_trim/Rock.Art/Rock.LP/01 - Rock.Track.flac" should exist
+    And the file "target_filter_trim/Jazz/Jazz LP/01 - Jazz Tune.wav" should not exist
+
+  Scenario: Filter with complex sanitization and size constraints
+    Given a source directory "source_filter_complex" with the following music files:
+      | File Path         | Artist               | Album                  | Title                    | Size (MB) |
+      | big_messy.mp3     | " //Rock\\Star// "   | " ..Greatest*Hits.. "  | " ..Hit<Song>Name.. "   | 12        |
+      | small_clean.flac  | Clean Artist         | Clean Album            | Clean Title              | 3         |
+      | big_other.wav     | Different Band       | Other Album            | Other Song               | 15        |
+    And an empty target directory "target_filter_complex"  
+    When I run the command "muxic copy --source source_filter_complex --target target_filter_complex --filter rock --over 10"
+    Then the file "target_filter_complex/--Rock-Star--/Greatest-Hits/01 - Hit-Song-Name.mp3" should exist
+    And the file "target_filter_complex/Clean Artist/Clean Album/01 - Clean Title.flac" should not exist
+    And the file "target_filter_complex/Different Band/Other Album/01 - Other Song.wav" should not exist
+    And the console output should contain "Filtering files to those containing: rock and size > 10MB"

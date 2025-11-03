@@ -69,3 +69,56 @@ Feature: Move Music Files
     And the console output should contain "EXISTS: File already exists, skipping source_dry_move_exists/dry_exist_track.mp3"
     And the console output should not contain "[DRY-RUN] Would delete source file: source_dry_move_exists/dry_exist_track.mp3"
     And the source file "source_dry_move_exists/dry_exist_track.mp3" should still exist
+
+  Scenario: Move with Windows filesystem sanitization - prohibited characters
+    Given a source directory "source_move_windows_chars" with the following music files:
+      | File Path         | Artist          | Album           | Title              |
+      | bad_chars.mp3     | Queen/King      | Greatest\\Hits  | We*Will?Rock"You   |
+      | symbols.flac      | Artist<>Name    | Album|Volume:2  | Track>Name         |
+    And an empty target directory "target_move_windows_chars"
+    When I run the command "muxic copy --source source_move_windows_chars --target target_move_windows_chars --move"
+    Then the file "target_move_windows_chars/Queen-King/Greatest-Hits/01 - We-Will-Rock-You.mp3" should exist
+    And the file "target_move_windows_chars/Artist--Name/Album-Volume-2/01 - Track-Name.flac" should exist
+    And the source file "source_move_windows_chars/bad_chars.mp3" should not exist
+    And the source file "source_move_windows_chars/symbols.flac" should not exist
+    And the console output should contain "Deleting source file:"
+
+  Scenario: Move with Windows filesystem sanitization - Unicode characters
+    Given a source directory "source_move_unicode" with the following music files:
+      | File Path       | Artist       | Album           | Title            |
+      | unicode1.mp3    | Café Del Mar | Ibiza Chillout  | Naïve Song      |
+      | unicode2.flac   | 村上春樹      | 音楽アルバム     | 素晴らしい歌     |
+    And an empty target directory "target_move_unicode"
+    When I run the command "muxic copy --source source_move_unicode --target target_move_unicode --move"
+    Then the file "target_move_unicode/Cafe Del Mar/Ibiza Chillout/01 - Naive Song.mp3" should exist
+    And the file "target_move_unicode/Cun Shang Chun Shu/Yin Le arubamuShu/01 - Su Qing rashii Ge.flac" should exist
+    And the source file "source_move_unicode/unicode1.mp3" should not exist
+    And the source file "source_move_unicode/unicode2.flac" should not exist
+
+  Scenario: Move with Windows filesystem sanitization - leading/trailing spaces and periods
+    Given a source directory "source_move_trim" with the following music files:
+      | File Path       | Artist         | Album            | Title              |
+      | spaces.mp3      | " Band Name "  | " Album Title "  | " Song Name "     |
+      | periods.flac    | "..Artist.."   | "..Album.."      | "..Title.."       |
+      | mixed.wav       | ". Artist . "  | " .Album. "      | " .Song. "        |
+    And an empty target directory "target_move_trim"
+    When I run the command "muxic copy --source source_move_trim --target target_move_trim --move"
+    Then the file "target_move_trim/Band Name/Album Title/01 - Song Name.mp3" should exist
+    And the file "target_move_trim/Artist/Album/01 - Title.flac" should exist
+    And the file "target_move_trim/Artist/Album/01 - Song.wav" should exist
+    And the source file "source_move_trim/spaces.mp3" should not exist
+    And the source file "source_move_trim/periods.flac" should not exist
+    And the source file "source_move_trim/mixed.wav" should not exist
+
+  Scenario: Move with comprehensive tag-based filename generation and sanitization
+    Given a source directory "source_move_comprehensive" with the following music files:
+      | File Path           | Artist              | Album                      | Title                      | Track |
+      | terrible_name.mp3   | " //AC\\DC// "      | " ..Back*In?Black<>.. "   | " ..Hells\"Bells|Rock.. "  | 5     |
+      | another_bad.flac    | " Sigur Rós "       | " ( ) "                   | " Untitled #1 "            | 1     |
+    And an empty target directory "target_move_comprehensive"
+    When I run the command "muxic copy --source source_move_comprehensive --target target_move_comprehensive --move"
+    Then the file "target_move_comprehensive/--AC-DC--/Back-In-Black---/05 - Hells-Bells-Rock.mp3" should exist
+    And the file "target_move_comprehensive/Sigur Ros/( )/01 - Untitled #1.flac" should exist
+    And the source file "source_move_comprehensive/terrible_name.mp3" should not exist
+    And the source file "source_move_comprehensive/another_bad.flac" should not exist
+    And the console output should contain "Deleting source file:"

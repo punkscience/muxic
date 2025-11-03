@@ -10,27 +10,16 @@ import (
 	"log"
 	"muxic/pkg/filesystem"
 	"muxic/pkg/metadata"
+	"muxic/pkg/sanitization"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/fiam/gounidecode/unidecode"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // ErrFileAlreadyExists is returned when the destination file for a copy or move operation already exists.
 var ErrFileAlreadyExists = errors.New("file already exists")
 
-// specificSubstitutions holds rules for specific string replacements.
-// These are applied before general cleanup and title casing.
-var specificSubstitutions = map[string]string{
-	"feat.":     "ft",
-	"Feat.":     "ft",
-	"Feat":      "ft",
-	"Featuring": "ft",
-	"&":         "and",
-}
+// sanitizer is the global sanitizer instance used for cleaning metadata
+var sanitizer = sanitization.NewWindowsSanitizer()
 
 // SuggestDestinationPath suggests a destination path for a music file based on its metadata.
 // It uses trackInfo to generate a filename and combines it with the destBaseFolder.
@@ -152,13 +141,16 @@ func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 }
 
 // makeFileName generates a filename string based on track metadata.
-// It uses the cleaned artist, album, title, track number, and original extension.
+// It uses the sanitized artist, album, title, track number, and original extension.
 // If useFolders is true, the format is "Artist/Album/TrackNum - Title.ext";
 // otherwise, it's "Artist - Album - TrackNum - Title.ext".
 func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
-	artist := cleanup(trackInfo.Artist)
-	album := cleanup(trackInfo.Album)
-	title := cleanup(trackInfo.Title)
+	// Use the new sanitization system for Windows filesystem compatibility
+	artist, album, title := sanitizer.SanitizeTrackMetadata(
+		trackInfo.Artist,
+		trackInfo.Album, 
+		trackInfo.Title,
+	)
 
 	var newName string
 	if useFolders {
@@ -169,26 +161,4 @@ func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
 	return newName
 }
 
-// cleanup sanitizes a string for use in file or directory names.
-// It trims whitespace, replaces reserved characters, performs specific substitutions (e.g., "feat." to "ft"),
-// and applies title casing. It also transliterates any non-ASCII characters to their closest ASCII equivalent.
-func cleanup(s string) string {
-	s = strings.TrimSpace(s)
-	s = unidecode.Unidecode(s)
 
-	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
-	for _, char := range invalidChars {
-		s = strings.ReplaceAll(s, char, "-")
-	}
-
-	for strings.Contains(s, "  ") {
-		s = strings.ReplaceAll(s, "  ", " ")
-	}
-
-	for key, value := range specificSubstitutions {
-		s = strings.ReplaceAll(s, key, value)
-	}
-
-	s = cases.Title(language.English).String(s)
-	return s
-}
