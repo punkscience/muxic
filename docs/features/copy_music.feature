@@ -76,6 +76,7 @@ Feature: Copy Music Files
     And the console output should contain "[DRY-RUN] Would attempt to process/copy music file 'source_dry_run_new_target/new_target_dry.mp3'"
     And the directory "target_dry_run_mkdir" should not be created
 
+
   Scenario: Windows filesystem sanitization - prohibited characters
     Given a source directory "source_windows_chars" with the following music files:
       | File Path             | Artist        | Album         | Title            |
