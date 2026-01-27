@@ -9,8 +9,11 @@ import (
 	"muxic/musicutils"
 	"muxic/pkg/filesystem"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/spf13/cobra"
 )
@@ -74,57 +77,71 @@ The --dry-run flag simulates operations without making changes.`,
 			}
 		}
 
-		var allFiles []string
+		var filesChan <-chan string
 		if filter != "" || maxMB > 0 || minDuration > 0 {
 			log.Printf("Muxic: Filtering files (filter: '%s', size > %dMB, duration >= %d minutes)...", filter, maxMB, minDuration)
-			allFiles = musicutils.GetFilteredMusicFiles(sourceFolder, filter, maxMB, minDuration)
+			filesChan = musicutils.GetFilteredMusicFiles(sourceFolder, filter, maxMB, minDuration)
 		} else {
 			log.Println("Muxic: Scanning all music files...")
-			allFiles = musicutils.GetAllMusicFiles(sourceFolder)
+			filesChan = musicutils.GetAllMusicFiles(sourceFolder)
 		}
 
-		log.Printf("Muxic: Found %d music files. Processing...", len(allFiles))
+		log.Println("Muxic: Processing files...")
 
-		processedCount := 0
-		errorCount := 0
+		var processedCount int64
+		var errorCount int64
+		var wg sync.WaitGroup
 
-		for _, file := range allFiles {
-			if verbose {
-				if dryRun {
-					log.Printf("[DRY-RUN] Processing file: %s", file)
-				} else {
-					log.Printf("Processing file: %s", file)
-				}
-			}
-
-			var resultFileName string
-			var err error
-
-			useFolders := true // TODO: Consider making this a command-line flag if flexibility is needed.
-
-			if destructive {
-				resultFileName, err = movemusic.MoveMusic(file, targetFolder, useFolders, dryRun, sourceFolder)
-			} else {
-				resultFileName, err = movemusic.CopyMusic(file, targetFolder, useFolders, dryRun)
-			}
-
-			if err != nil {
-				if errors.Is(err, movemusic.ErrFileAlreadyExists) {
-					// This is not a critical error, just a skip. Do not increment errorCount.
-				} else {
-					log.Printf("Error processing file %s: %v", file, err)
-					errorCount++
-				}
-				continue
-			}
-
-			if !dryRun {
-				log.Printf("Finished %s: %s -> %s", operationType, file, resultFileName)
-			} else {
-				log.Printf("[DRY-RUN] Simulated %s for: %s -> %s", strings.ToLower(operationType), file, resultFileName)
-			}
-			processedCount++
+		numWorkers := runtime.NumCPU()
+		if verbose {
+			log.Printf("Using %d workers", numWorkers)
 		}
+
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for file := range filesChan {
+					if verbose {
+						if dryRun {
+							log.Printf("[DRY-RUN] Processing file: %s", file)
+						} else {
+							log.Printf("Processing file: %s", file)
+						}
+					}
+
+					var resultFileName string
+					var err error
+
+					useFolders := true // TODO: Consider making this a command-line flag if flexibility is needed.
+
+					if destructive {
+						resultFileName, err = movemusic.MoveMusic(file, targetFolder, useFolders, dryRun, sourceFolder)
+					} else {
+						resultFileName, err = movemusic.CopyMusic(file, targetFolder, useFolders, dryRun)
+					}
+
+					if err != nil {
+						if errors.Is(err, movemusic.ErrFileAlreadyExists) {
+							// This is not a critical error, just a skip. Do not increment errorCount.
+						} else {
+							log.Printf("Error processing file %s: %v", file, err)
+							atomic.AddInt64(&errorCount, 1)
+						}
+						continue
+					}
+
+					if !dryRun {
+						log.Printf("Finished %s: %s -> %s", operationType, file, resultFileName)
+					} else {
+						log.Printf("[DRY-RUN] Simulated %s for: %s -> %s", strings.ToLower(operationType), file, resultFileName)
+					}
+					atomic.AddInt64(&processedCount, 1)
+				}
+			}()
+		}
+
+		wg.Wait()
 		log.Printf("Muxic: Processing complete. %d files processed, %d errors.", processedCount, errorCount)
 	},
 }

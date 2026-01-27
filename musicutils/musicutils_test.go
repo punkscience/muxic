@@ -29,6 +29,14 @@ func createMusicTestFiles(t *testing.T, rootDir string, fileNames []string) {
 	}
 }
 
+func collect(ch <-chan string) []string {
+	files := make([]string, 0)
+	for f := range ch {
+		files = append(files, f)
+	}
+	return files
+}
+
 func TestGetAllMusicFiles(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "musicutils_getall_*")
 	if err != nil {
@@ -63,7 +71,7 @@ func TestGetAllMusicFiles(t *testing.T) {
 		filepath.Join(tmpDir, "subdir1", "subdir2", "song6.flac"),
 	}
 
-	actualFiles := GetAllMusicFiles(tmpDir)
+	actualFiles := collect(GetAllMusicFiles(tmpDir))
 
 	// Sort both slices for consistent comparison
 	sort.Strings(actualFiles)
@@ -74,7 +82,7 @@ func TestGetAllMusicFiles(t *testing.T) {
 	}
 
 	// Test with a non-existent folder
-	emptyResult := GetAllMusicFiles(filepath.Join(tmpDir, "non_existent_folder_123"))
+	emptyResult := collect(GetAllMusicFiles(filepath.Join(tmpDir, "non_existent_folder_123")))
 	if len(emptyResult) != 0 {
 		t.Errorf("GetAllMusicFiles() on non-existent folder should return empty slice, got %v", emptyResult)
 	}
@@ -87,17 +95,18 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	subDir := filepath.Join(tmpDir, "rock_band")
+	subDirName := "rock_band"
+	subDir := filepath.Join(tmpDir, subDirName)
 	os.Mkdir(subDir, 0755)
 
 	testFiles := []string{
-		"Artist - SongA.mp3",                        // Matches "artist", size 1MB
-		"Artist - SongB.flac",                       // Matches "artist"
-		"Another Artist - SongC.m4a",                // Does not match "artist"
-		"ARTIST - SongD.wav",                        // Matches "artist" (case-insensitive path)
-		filepath.Join(subDir, "Artist - SongE.mp3"), // Matches "artist", size 1MB
-		"BigFileSong.mp3",                           // Size 1MB
-		"SmallFile.mp3",                             // Size 0MB (or very small)
+		"Artist - SongA.mp3",                            // Matches "artist", size 1MB
+		"Artist - SongB.flac",                           // Matches "artist"
+		"Another Artist - SongC.m4a",                    // Does not match "artist"
+		"ARTIST - SongD.wav",                            // Matches "artist" (case-insensitive path)
+		filepath.Join(subDirName, "Artist - SongE.mp3"), // Matches "artist", size 1MB
+		"BigFileSong.mp3",                               // Size 1MB
+		"SmallFile.mp3",                                 // Size 0MB (or very small)
 	}
 	// Create files, ensuring "BigFileSong.mp3" and "Artist - SongA.mp3" are >0MB for size filter tests
 	// The helper `createMusicTestFiles` makes .mp3 files 1MB.
@@ -117,60 +126,60 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 		expectedFiles []string
 	}{
 		{
-			name:   "Filter by artist name",
-			folder: tmpDir,
-			filter: "artist",
-			maxMB:  0, // No size limit
+			name:        "Filter by artist name",
+			folder:      tmpDir,
+			filter:      "artist",
+			maxMB:       0, // No size limit
 			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
 				filepath.Join(tmpDir, "Artist - SongB.flac"),
 				filepath.Join(tmpDir, "ARTIST - SongD.wav"),
-				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(subDir, "Artist - SongE.mp3"),
 				filepath.Join(tmpDir, "Another Artist - SongC.m4a"), // This was missing
 			},
 		},
 		{
-			name:   "Filter by file extension",
-			folder: tmpDir,
-			filter: ".flac",
-			maxMB:  0,
+			name:        "Filter by file extension",
+			folder:      tmpDir,
+			filter:      ".flac",
+			maxMB:       0,
 			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongB.flac"),
 			},
 		},
 		{
-			name:   "Filter by subfolder name",
-			folder: tmpDir,
-			filter: "rock_band",
-			maxMB:  0,
+			name:        "Filter by subfolder name",
+			folder:      tmpDir,
+			filter:      "rock_band",
+			maxMB:       0,
 			minDuration: 0,
 			expectedFiles: []string{
-				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(subDir, "Artist - SongE.mp3"),
 			},
 		},
 		{
-			name:   "Filter with size limit (no specific name filter)",
-			folder: tmpDir,
-			filter: "", // No name filter
-			maxMB:  1,  // Files > 1MB (actually >= 1MB due to helper creating 1MB files)
+			name:        "Filter with size limit (no specific name filter)",
+			folder:      tmpDir,
+			filter:      "", // No name filter
+			maxMB:       1,  // Files > 1MB (actually >= 1MB due to helper creating 1MB files)
 			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
-				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(subDir, "Artist - SongE.mp3"),
 				filepath.Join(tmpDir, "BigFileSong.mp3"),
 			},
 		},
 		{
-			name:   "Filter by name and size limit",
-			folder: tmpDir,
-			filter: "artist",
-			maxMB:  1, // Only "Artist" files that are >= 1MB
+			name:        "Filter by name and size limit",
+			folder:      tmpDir,
+			filter:      "artist",
+			maxMB:       1, // Only "Artist" files that are >= 1MB
 			minDuration: 0,
 			expectedFiles: []string{
 				filepath.Join(tmpDir, "Artist - SongA.mp3"),
-				filepath.Join(tmpDir, subDir, "Artist - SongE.mp3"),
+				filepath.Join(subDir, "Artist - SongE.mp3"),
 			},
 		},
 		{
@@ -178,7 +187,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        tmpDir,
 			filter:        "nonexistent_filter_term",
 			maxMB:         0,
-			minDuration: 0,
+			minDuration:   0,
 			expectedFiles: []string{},
 		},
 		{
@@ -186,7 +195,7 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        filepath.Join(tmpDir, "non_existent_folder_XYZ"),
 			filter:        "",
 			maxMB:         0,
-			minDuration: 0,
+			minDuration:   0,
 			expectedFiles: []string{},
 		},
 		{
@@ -194,14 +203,14 @@ func TestGetFilteredMusicFiles(t *testing.T) {
 			folder:        tmpDir,
 			filter:        "",
 			maxMB:         2, // All test .mp3 files are 1MB
-			minDuration: 0,
+			minDuration:   0,
 			expectedFiles: []string{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualFiles := GetFilteredMusicFiles(tc.folder, tc.filter, tc.maxMB, tc.minDuration)
+			actualFiles := collect(GetFilteredMusicFiles(tc.folder, tc.filter, tc.maxMB, tc.minDuration))
 			sort.Strings(actualFiles)
 			sort.Strings(tc.expectedFiles)
 			if !reflect.DeepEqual(actualFiles, tc.expectedFiles) {

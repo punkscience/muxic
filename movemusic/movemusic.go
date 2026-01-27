@@ -50,11 +50,8 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 		return "", fmt.Errorf("error reading track info for %s: %w", sourceFileFullPath, err)
 	}
 
-	if _, statErr := os.Stat(destFolderPath); os.IsNotExist(statErr) {
-		return "", fmt.Errorf("destination folder does not exist: %s", destFolderPath)
-	} else if statErr != nil {
-		return "", fmt.Errorf("error checking destination folder %s: %w", destFolderPath, statErr)
-	}
+	// Optimization: The destination folder is already guaranteed to exist by the caller (cmd/copy.go).
+	// Removing the redundant os.Stat call to improve performance in the loop.
 
 	destFileFullPath, err := SuggestDestinationPath(destFolderPath, useFolders, trackInfo)
 	if err != nil {
@@ -148,7 +145,7 @@ func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
 	// Use the new sanitization system for Windows filesystem compatibility
 	artist, album, title := sanitizer.SanitizeTrackMetadata(
 		trackInfo.Artist,
-		trackInfo.Album, 
+		trackInfo.Album,
 		trackInfo.Title,
 	)
 
@@ -160,5 +157,3 @@ func makeFileName(trackInfo *metadata.TrackInfo, useFolders bool) string {
 	}
 	return newName
 }
-
-

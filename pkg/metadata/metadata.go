@@ -29,12 +29,7 @@ type TrackInfo struct {
 // Failure to read tags is logged as a warning but does not return an error,
 // allowing the function to proceed with defaults.
 func ReadTrackInfo(filePath string) (*TrackInfo, error) {
-	// Check if the source file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("file does not exist: %s", filePath)
-	} else if err != nil {
-		return nil, fmt.Errorf("error checking file %s: %w", filePath, err)
-	}
+	// Optimization: Removing redundant os.Stat call. os.Open below will return an error if the file doesn't exist.
 
 	file, err := os.Open(filePath)
 	if err != nil {

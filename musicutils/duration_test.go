@@ -71,7 +71,7 @@ func TestGetFilteredMusicFiles_Duration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualFiles := GetFilteredMusicFiles(tmpDir, "", 0, tc.minDuration)
+			actualFiles := collect(GetFilteredMusicFiles(tmpDir, "", 0, tc.minDuration))
 			if len(actualFiles) != tc.expectedCount {
 				t.Errorf("Expected %d files, but got %d for minDuration %d", tc.expectedCount, len(actualFiles), tc.minDuration)
 			}
