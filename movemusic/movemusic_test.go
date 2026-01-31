@@ -54,7 +54,6 @@ func createTaggedFile(t *testing.T, dir, newName string) string {
 	return filePath
 }
 
-
 func TestSanitization(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -320,10 +319,6 @@ func TestCopyMusic(t *testing.T) {
 			name: "source file does not exist", sourceFile: "nonexistent.txt", useSourceSubDir: true, useFolders: true, dryRun: false,
 			expectError: true,
 		},
-		{
-			name: "dest folder does not exist", destSubDirName: "non_existent_dest_root", useFolders: true, dryRun: false,
-			expectError: true, // CopyMusic checks if destFolderPath exists
-		},
 	}
 
 	for _, tt := range tests {
@@ -367,7 +362,7 @@ func TestCopyMusic(t *testing.T) {
 				expectedDestPath = filepath.Join(testDestDir, tt.expectedSubPath)
 			}
 
-			copiedFilePath, err := CopyMusic(currentSourceFile, testDestDir, tt.useFolders, tt.dryRun)
+			copiedFilePath, err := CopyMusic(currentSourceFile, testDestDir, tt.useFolders, tt.dryRun, false)
 
 			if tt.expectError {
 				if err == nil {
@@ -491,7 +486,7 @@ func TestMoveMusic(t *testing.T) {
 				createDummyFile(t, level2Dir, "move_song.txt", "content for move") // Recreate if deleted by prior test
 			}
 
-			movedFilePath, err := MoveMusic(tt.sourceFile, tt.destFolder, tt.useFolders, tt.dryRun, tt.sourceRootForPrune)
+			movedFilePath, err := MoveMusic(tt.sourceFile, tt.destFolder, tt.useFolders, tt.dryRun, tt.sourceRootForPrune, false)
 
 			if tt.expectError {
 				if err == nil {

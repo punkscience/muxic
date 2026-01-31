@@ -116,9 +116,9 @@ The --dry-run flag simulates operations without making changes.`,
 					useFolders := true // TODO: Consider making this a command-line flag if flexibility is needed.
 
 					if destructive {
-						resultFileName, err = movemusic.MoveMusic(file, targetFolder, useFolders, dryRun, sourceFolder)
+						resultFileName, err = movemusic.MoveMusic(file, targetFolder, useFolders, dryRun, sourceFolder, verbose)
 					} else {
-						resultFileName, err = movemusic.CopyMusic(file, targetFolder, useFolders, dryRun)
+						resultFileName, err = movemusic.CopyMusic(file, targetFolder, useFolders, dryRun, verbose)
 					}
 
 					if err != nil {

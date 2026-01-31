@@ -44,7 +44,10 @@ func SuggestDestinationPath(destBaseFolder string, useFolders bool, trackInfo *m
 // CopyMusic copies a music file from sourceFileFullPath to a new location within destFolderPath.
 // The new location is determined by the file's metadata and the useFolders flag.
 // If dryRun is true, it logs the intended operation without performing file system changes.
-func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool) (string, error) {
+// CopyMusic copies a music file from sourceFileFullPath to a new location within destFolderPath.
+// The new location is determined by the file's metadata and the useFolders flag.
+// If dryRun is true, it logs the intended operation without performing file system changes.
+func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool, verbose bool) (string, error) {
 	trackInfo, err := metadata.ReadTrackInfo(sourceFileFullPath)
 	if err != nil {
 		return "", fmt.Errorf("error reading track info for %s: %w", sourceFileFullPath, err)
@@ -63,12 +66,16 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 	cleanSource, _ := filepath.Abs(sourceFileFullPath)
 	cleanDest, _ := filepath.Abs(destFileFullPath)
 	if cleanSource == cleanDest {
-		log.Printf("IDENTICAL: Source and destination are the same, skipping %s", sourceFileFullPath)
+		if verbose {
+			log.Printf("IDENTICAL: Source and destination are the same, skipping %s", sourceFileFullPath)
+		}
 		return destFileFullPath, ErrFileAlreadyExists
 	}
 
 	if filesystem.FileExists(destFileFullPath) {
-		log.Printf("EXISTS: File already exists, skipping %s", sourceFileFullPath)
+		if verbose {
+			log.Printf("EXISTS: File already exists, skipping %s", sourceFileFullPath)
+		}
 		return destFileFullPath, ErrFileAlreadyExists
 	}
 
@@ -107,8 +114,8 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 // MoveMusic copies a music file to a new location and then deletes the source file and prunes empty parent directories.
 // sourceLibraryRootDir specifies the root directory up to which parent directories of the source file may be pruned.
 // If dryRun is true, operations are logged but not executed.
-func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool, sourceLibraryRootDir string) (string, error) {
-	copiedFilePath, err := CopyMusic(sourceFileFullPath, destFolderPath, useFolders, dryRun)
+func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool, dryRun bool, sourceLibraryRootDir string, verbose bool) (string, error) {
+	copiedFilePath, err := CopyMusic(sourceFileFullPath, destFolderPath, useFolders, dryRun, verbose)
 	if err != nil {
 		if errors.Is(err, ErrFileAlreadyExists) {
 			return copiedFilePath, nil // Not an error for move operation, just skip deleting
@@ -128,7 +135,9 @@ func MoveMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 			log.Println("[DRY-RUN] No simulated delete actions for", sourceFileFullPath)
 		}
 	} else {
-		log.Printf("Deleting source file %s and pruning parent directories up to %s.", sourceFileFullPath, sourceLibraryRootDir)
+		if verbose {
+			log.Printf("Deleting source file %s and pruning parent directories up to %s.", sourceFileFullPath, sourceLibraryRootDir)
+		}
 		_, delErr := filesystem.DeleteFileAndPruneParents(sourceFileFullPath, sourceLibraryRootDir, false)
 		if delErr != nil {
 			log.Printf("Error deleting source file %s or pruning parents: %v. The file was successfully copied to %s.", sourceFileFullPath, delErr, copiedFilePath)

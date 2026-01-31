@@ -6,6 +6,7 @@ package sanitization
 import (
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/fiam/gounidecode/unidecode"
 	"golang.org/x/text/cases"
@@ -18,10 +19,10 @@ import (
 type Sanitizer interface {
 	// SanitizeForFilesystem sanitizes a string for use in Windows filesystem paths
 	SanitizeForFilesystem(input string) string
-	
+
 	// SanitizeFolderName sanitizes a string specifically for folder names
 	SanitizeFolderName(input string) string
-	
+
 	// SanitizeFileName sanitizes a string specifically for file names
 	SanitizeFileName(input string) string
 }
@@ -30,6 +31,7 @@ type Sanitizer interface {
 // It follows the Single Responsibility Principle by focusing solely on sanitization.
 type WindowsSanitizer struct {
 	titleCaser        cases.Caser
+	titleCaserMu      sync.Mutex // Protects titleCaser which is not thread-safe for concurrent transformations
 	substitutions     map[string]string
 	prohibitedPattern *regexp.Regexp
 }
@@ -41,7 +43,7 @@ func NewWindowsSanitizer() *WindowsSanitizer {
 	// Default substitutions based on common music file conventions
 	defaultSubstitutions := map[string]string{
 		"feat.":     "ft",
-		"Feat.":     "ft", 
+		"Feat.":     "ft",
 		"Feat":      "ft",
 		"featuring": "ft",
 		"Featuring": "ft",
@@ -79,29 +81,29 @@ func (w *WindowsSanitizer) SanitizeForFilesystem(input string) string {
 
 	// Step 1: Trim leading and trailing whitespace
 	result := strings.TrimSpace(input)
-	
+
 	// Step 2: Convert Unicode/non-ASCII characters to ASCII equivalents
 	result = unidecode.Unidecode(result)
-	
+
 	// Step 3: Apply specific substitutions BEFORE character replacement
 	// This ensures patterns like "w/" are handled before "/" becomes "-"
 	result = w.applySubstitutions(result)
-	
+
 	// Step 4: Replace prohibited characters with hyphens
 	result = w.prohibitedPattern.ReplaceAllString(result, "-")
-	
+
 	// Step 5: Additional cleanup: remove spaces around hyphens if they result from substitutions
 	result = regexp.MustCompile(`\s+-\s+`).ReplaceAllString(result, "-")
-	
+
 	// Step 6: Normalize multiple consecutive spaces to single spaces
 	result = w.normalizeSpaces(result)
-	
+
 	// Step 7: Apply intelligent title casing (preserve existing uppercase)
 	result = w.intelligentTitleCase(result)
-	
+
 	// Step 8: Trim leading and trailing periods and spaces
 	result = w.trimPeriodsAndSpaces(result)
-	
+
 	return result
 }
 
@@ -128,7 +130,7 @@ func (w *WindowsSanitizer) normalizeSpaces(input string) string {
 // This method performs case-insensitive matching for better user experience.
 func (w *WindowsSanitizer) applySubstitutions(input string) string {
 	result := input
-	
+
 	// Apply substitutions with specific handling for different patterns
 	for original, replacement := range w.substitutions {
 		switch original {
@@ -141,7 +143,7 @@ func (w *WindowsSanitizer) applySubstitutions(input string) string {
 			pattern := regexp.MustCompile(`\s*@\s*`)
 			result = pattern.ReplaceAllString(result, " "+replacement+" ")
 		case "w/":
-			// Replace w/ pattern  
+			// Replace w/ pattern
 			pattern := regexp.MustCompile(`(?i)\bw/`)
 			result = pattern.ReplaceAllString(result, replacement)
 		default:
@@ -150,13 +152,13 @@ func (w *WindowsSanitizer) applySubstitutions(input string) string {
 				pattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(strings.TrimSuffix(original, ".")) + `\.`)
 				result = pattern.ReplaceAllString(result, replacement)
 			} else {
-				// For all other substitutions  
+				// For all other substitutions
 				pattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(original) + `\b`)
 				result = pattern.ReplaceAllString(result, replacement)
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -174,22 +176,24 @@ func (w *WindowsSanitizer) intelligentTitleCase(input string) string {
 	if input == "" {
 		return ""
 	}
-	
+
 	// Use regex to handle title casing while preserving certain patterns
 	words := regexp.MustCompile(`\b\w+\b`).FindAllString(input, -1)
 	result := input
-	
+
 	for _, word := range words {
 		if w.shouldPreserveCase(word) {
 			// Keep the word as-is if it should preserve case
 			continue
 		}
-		
+
 		// Replace the word with its title-cased version
+		w.titleCaserMu.Lock()
 		titleCased := w.titleCaser.String(word)
+		w.titleCaserMu.Unlock()
 		result = strings.Replace(result, word, titleCased, 1)
 	}
-	
+
 	return result
 }
 
@@ -198,11 +202,11 @@ func (w *WindowsSanitizer) intelligentTitleCase(input string) string {
 func (w *WindowsSanitizer) shouldPreserveCase(word string) bool {
 	// Only preserve short all-uppercase words (like "AC", "DC", "UK", etc.)
 	// but NOT file extensions or very long uppercase strings
-	if len(word) >= 2 && len(word) <= 4 && strings.ToUpper(word) == word && 
+	if len(word) >= 2 && len(word) <= 4 && strings.ToUpper(word) == word &&
 		!strings.Contains(word, ".") && !strings.Contains(word, "-") {
 		return true
 	}
-	
+
 	// Don't preserve case for most other patterns to ensure consistent title casing
 	return false
 }
@@ -222,7 +226,7 @@ func ValidateWindowsPath(path string) bool {
 	if path == "" {
 		return false
 	}
-	
+
 	// Check for prohibited characters
 	prohibitedChars := []string{"<", ">", ":", "\"", "|", "?", "*"}
 	for _, char := range prohibitedChars {
@@ -230,7 +234,7 @@ func ValidateWindowsPath(path string) bool {
 			return false
 		}
 	}
-	
+
 	// Check for paths ending with periods or spaces
 	parts := strings.Split(path, "/")
 	for _, part := range parts {
@@ -241,6 +245,6 @@ func ValidateWindowsPath(path string) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }

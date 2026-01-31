@@ -1,0 +1,222 @@
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/empty_string
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/simple_text
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/already_clean
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/forward_slash
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/backslash
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/colon
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/asterisk
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/question_mark
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/double_quotes
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/angle_brackets
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/pipe
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/multiple_prohibited_chars
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/complex_artist
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/complex_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/complex_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/band_with_pipe
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/track_with_greater_than
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_characters
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_band
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_album_2
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/icelandic_title_2
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/chinese_artist
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/chinese_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/chinese_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/japanese_text
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/cafe_accent
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/naive_accent
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods_title
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/motley_crue_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/shout_at_devil_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/girls_girls_girls_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/rock_star_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/greatest_hits_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/hit_song_complex
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/feat_period
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/Feat_capital
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/Feat_no_period
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/featuring_full
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/ampersand
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/get_lucky_ft
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/double_spaces
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/multiple_spaces_mixed
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/lowercase
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/mixed_case
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/all_caps
+    sanitization_test.go:103: SanitizeForFilesystem("ALL CAPS TITLE") = "ALL CAPS Title", expected "All Caps Title"
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/parentheses_album
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/untitled_track
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/embrace_slash
+    sanitization_test.go:103: SanitizeForFilesystem("µôüµè▒/Embrace") = "Yong Bao -Embrace", expected "Yong Bao-Embrace"
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/mayday_chinese
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/autobiography_brackets
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/bjork_collaboration
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/medulla_extended
+=== RUN   TestWindowsSanitizer_SanitizeForFilesystem/desired_constellation
+--- FAIL: TestWindowsSanitizer_SanitizeForFilesystem (0.02s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/empty_string (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/simple_text (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/already_clean (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/forward_slash (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/backslash (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/colon (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/asterisk (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/question_mark (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/double_quotes (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/angle_brackets (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/pipe (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/multiple_prohibited_chars (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/complex_artist (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/complex_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/complex_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/band_with_pipe (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/track_with_greater_than (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_characters (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_band (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_album_2 (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/icelandic_title_2 (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/chinese_artist (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/chinese_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/chinese_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/japanese_text (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/cafe_accent (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/naive_accent (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_spaces_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/leading_trailing_periods_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/mixed_spaces_and_periods_title (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/motley_crue_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/shout_at_devil_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/girls_girls_girls_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/rock_star_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/greatest_hits_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/hit_song_complex (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/feat_period (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/Feat_capital (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/Feat_no_period (0.01s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/featuring_full (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/ampersand (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/get_lucky_ft (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/double_spaces (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/multiple_spaces_mixed (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/lowercase (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/mixed_case (0.00s)
+    --- FAIL: TestWindowsSanitizer_SanitizeForFilesystem/all_caps (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/parentheses_album (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/untitled_track (0.00s)
+    --- FAIL: TestWindowsSanitizer_SanitizeForFilesystem/embrace_slash (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/mayday_chinese (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/autobiography_brackets (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/bjork_collaboration (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/medulla_extended (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeForFilesystem/desired_constellation (0.00s)
+=== RUN   TestWindowsSanitizer_SanitizeFolderName
+=== RUN   TestWindowsSanitizer_SanitizeFolderName/simple_folder
+=== RUN   TestWindowsSanitizer_SanitizeFolderName/folder_with_slash
+=== RUN   TestWindowsSanitizer_SanitizeFolderName/folder_with_periods
+=== RUN   TestWindowsSanitizer_SanitizeFolderName/folder_with_spaces
+--- PASS: TestWindowsSanitizer_SanitizeFolderName (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeFolderName/simple_folder (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeFolderName/folder_with_slash (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeFolderName/folder_with_periods (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeFolderName/folder_with_spaces (0.00s)
+=== RUN   TestWindowsSanitizer_SanitizeFileName
+=== RUN   TestWindowsSanitizer_SanitizeFileName/simple_file
+    sanitization_test.go:150: SanitizeFileName("song.mp3") = "Song.Mp3", expected "Song.mp3"
+=== RUN   TestWindowsSanitizer_SanitizeFileName/file_with_prohibited_chars
+    sanitization_test.go:150: SanitizeFileName("song*.mp3") = "Song-.Mp3", expected "Song-.mp3"
+=== RUN   TestWindowsSanitizer_SanitizeFileName/file_with_unicode
+    sanitization_test.go:150: SanitizeFileName("s├Ñng.mp3") = "Sang.Mp3", expected "Sang.mp3"
+--- FAIL: TestWindowsSanitizer_SanitizeFileName (0.00s)
+    --- FAIL: TestWindowsSanitizer_SanitizeFileName/simple_file (0.00s)
+    --- FAIL: TestWindowsSanitizer_SanitizeFileName/file_with_prohibited_chars (0.00s)
+    --- FAIL: TestWindowsSanitizer_SanitizeFileName/file_with_unicode (0.00s)
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata/basic_metadata
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_prohibited_characters
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_unicode
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_spaces_and_periods
+=== RUN   TestWindowsSanitizer_SanitizeTrackMetadata/complex_real-world_example
+--- PASS: TestWindowsSanitizer_SanitizeTrackMetadata (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeTrackMetadata/basic_metadata (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_prohibited_characters (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_unicode (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeTrackMetadata/metadata_with_spaces_and_periods (0.00s)
+    --- PASS: TestWindowsSanitizer_SanitizeTrackMetadata/complex_real-world_example (0.00s)
+=== RUN   TestValidateWindowsPath
+=== RUN   TestValidateWindowsPath/empty_path
+=== RUN   TestValidateWindowsPath/valid_path
+=== RUN   TestValidateWindowsPath/path_with_prohibited_char
+=== RUN   TestValidateWindowsPath/path_with_question_mark
+=== RUN   TestValidateWindowsPath/path_with_asterisk
+=== RUN   TestValidateWindowsPath/path_with_pipe
+=== RUN   TestValidateWindowsPath/path_with_quotes
+=== RUN   TestValidateWindowsPath/path_ending_with_period
+=== RUN   TestValidateWindowsPath/path_ending_with_space
+=== RUN   TestValidateWindowsPath/path_starting_with_period
+=== RUN   TestValidateWindowsPath/path_starting_with_space
+=== RUN   TestValidateWindowsPath/valid_complex_path
+--- PASS: TestValidateWindowsPath (0.00s)
+    --- PASS: TestValidateWindowsPath/empty_path (0.00s)
+    --- PASS: TestValidateWindowsPath/valid_path (0.00s)
+    --- PASS: TestValidateWindowsPath/path_with_prohibited_char (0.00s)
+    --- PASS: TestValidateWindowsPath/path_with_question_mark (0.00s)
+    --- PASS: TestValidateWindowsPath/path_with_asterisk (0.00s)
+    --- PASS: TestValidateWindowsPath/path_with_pipe (0.00s)
+    --- PASS: TestValidateWindowsPath/path_with_quotes (0.00s)
+    --- PASS: TestValidateWindowsPath/path_ending_with_period (0.00s)
+    --- PASS: TestValidateWindowsPath/path_ending_with_space (0.00s)
+    --- PASS: TestValidateWindowsPath/path_starting_with_period (0.00s)
+    --- PASS: TestValidateWindowsPath/path_starting_with_space (0.00s)
+    --- PASS: TestValidateWindowsPath/valid_complex_path (0.00s)
+=== RUN   TestWindowsSanitizerWithCustomSubstitutions
+=== RUN   TestWindowsSanitizerWithCustomSubstitutions/custom_vs
+    sanitization_test.go:286: Custom sanitizer SanitizeForFilesystem("Artist vs. Other") = "Artist Vs. Other", expected "Artist Versus Other"
+=== RUN   TestWindowsSanitizerWithCustomSubstitutions/custom_w/
+=== RUN   TestWindowsSanitizerWithCustomSubstitutions/custom_@
+=== RUN   TestWindowsSanitizerWithCustomSubstitutions/standard_feat_should_not_work
+--- FAIL: TestWindowsSanitizerWithCustomSubstitutions (0.00s)
+    --- FAIL: TestWindowsSanitizerWithCustomSubstitutions/custom_vs (0.00s)
+    --- PASS: TestWindowsSanitizerWithCustomSubstitutions/custom_w/ (0.00s)
+    --- PASS: TestWindowsSanitizerWithCustomSubstitutions/custom_@ (0.00s)
+    --- PASS: TestWindowsSanitizerWithCustomSubstitutions/standard_feat_should_not_work (0.00s)
+=== RUN   TestEdgeCases
+=== RUN   TestEdgeCases/only_prohibited_chars
+=== RUN   TestEdgeCases/only_periods
+=== RUN   TestEdgeCases/only_spaces
+=== RUN   TestEdgeCases/mixed_periods_and_spaces
+=== RUN   TestEdgeCases/single_character
+=== RUN   TestEdgeCases/unicode_only
+=== RUN   TestEdgeCases/very_long_string
+    sanitization_test.go:337: SanitizeForFilesystem("This is a very long string that contains many words and should be processed correctly even though it is quite lengthy and has various characters including spaces and punctuation marks.") = "ThIs Is A Very Long String That Contains Many Words And Should Be Processed Correctly Even Though It is Quite Lengthy And Has Various Characters Including Spaces And Punctuation Marks", expected "This Is A Very Long String That Contains Many Words And Should Be Processed Correctly Even Though It Is Quite Lengthy And Has Various Characters Including Spaces And Punctuation Marks"
+--- FAIL: TestEdgeCases (0.00s)
+    --- PASS: TestEdgeCases/only_prohibited_chars (0.00s)
+    --- PASS: TestEdgeCases/only_periods (0.00s)
+    --- PASS: TestEdgeCases/only_spaces (0.00s)
+    --- PASS: TestEdgeCases/mixed_periods_and_spaces (0.00s)
+    --- PASS: TestEdgeCases/single_character (0.00s)
+    --- PASS: TestEdgeCases/unicode_only (0.00s)
+    --- FAIL: TestEdgeCases/very_long_string (0.00s)
+=== RUN   TestConcurrentSanitization
+--- PASS: TestConcurrentSanitization (0.23s)
+FAIL
+FAIL	muxic/pkg/sanitization	0.627s
+FAIL

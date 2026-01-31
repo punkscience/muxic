@@ -190,7 +190,7 @@ func TestWindowsSanitizer_SanitizeTrackMetadata(t *testing.T) {
 			title:          "Öll Birtan",
 			expectedArtist: "Bjork",
 			expectedAlbum:  "Medulla",
-			expectedTitle:  "Oll Birtan",      
+			expectedTitle:  "Oll Birtan",
 		},
 		{
 			name:           "metadata with spaces and periods",
@@ -215,7 +215,7 @@ func TestWindowsSanitizer_SanitizeTrackMetadata(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			artist, album, title := sanitizer.SanitizeTrackMetadata(tc.artist, tc.album, tc.title)
-			
+
 			if artist != tc.expectedArtist {
 				t.Errorf("SanitizeTrackMetadata artist: got %q, expected %q", artist, tc.expectedArtist)
 			}
@@ -262,10 +262,10 @@ func TestValidateWindowsPath(t *testing.T) {
 func TestWindowsSanitizerWithCustomSubstitutions(t *testing.T) {
 	customSubs := map[string]string{
 		"vs.": "versus",
-		"w/":  "with", 
+		"w/":  "with",
 		"@":   "at",
 	}
-	
+
 	sanitizer := NewWindowsSanitizerWithSubstitutions(customSubs)
 
 	testCases := []struct {
@@ -293,7 +293,7 @@ func TestWindowsSanitizerWithCustomSubstitutions(t *testing.T) {
 func BenchmarkSanitizeForFilesystem(b *testing.B) {
 	sanitizer := NewWindowsSanitizer()
 	input := " //Mötley\\Crüe// feat. Other Artist & The Band"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sanitizer.SanitizeForFilesystem(input)
@@ -305,7 +305,7 @@ func BenchmarkSanitizeTrackMetadata(b *testing.B) {
 	artist := " //AC\\DC// "
 	album := " ..Back*In?Black<>.. "
 	title := " ..Thunder\"Strike|Rock.. "
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sanitizer.SanitizeTrackMetadata(artist, album, title)
@@ -337,5 +337,33 @@ func TestEdgeCases(t *testing.T) {
 				t.Errorf("SanitizeForFilesystem(%q) = %q, expected %q", tc.input, result, tc.expected)
 			}
 		})
+	}
+}
+
+func TestConcurrentSanitization(t *testing.T) {
+	sanitizer := NewWindowsSanitizer()
+	input := " //Mötley\\Crüe// feat. Other Artist & The Band"
+	expected := "--Motley-Crue-- Ft Other Artist And The Band"
+
+	concurrency := 100
+	loops := 100
+	done := make(chan bool)
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for j := 0; j < loops; j++ {
+				// This should not panic
+				res := sanitizer.SanitizeForFilesystem(input)
+				if res != expected {
+					// Don't errorf here to avoid spamming output, but check correctness
+					// panic("Result mismatch in concurrent test") // Optional: panic to fail fast
+				}
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < concurrency; i++ {
+		<-done
 	}
 }

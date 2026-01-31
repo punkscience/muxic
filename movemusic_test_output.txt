@@ -1,0 +1,106 @@
+=== RUN   TestSanitization
+=== RUN   TestSanitization/empty_string
+=== RUN   TestSanitization/no_changes
+=== RUN   TestSanitization/leading/trailing_spaces
+=== RUN   TestSanitization/slashes
+=== RUN   TestSanitization/colons
+=== RUN   TestSanitization/asterisks
+=== RUN   TestSanitization/question_marks
+=== RUN   TestSanitization/quotes
+=== RUN   TestSanitization/angle_brackets
+=== RUN   TestSanitization/pipes
+=== RUN   TestSanitization/double_spaces
+=== RUN   TestSanitization/ampersand
+=== RUN   TestSanitization/transliteration
+=== RUN   TestSanitization/non-ascii
+=== RUN   TestSanitization/basic_sanitization
+=== RUN   TestSanitization/leading/trailing_periods
+--- PASS: TestSanitization (0.01s)
+    --- PASS: TestSanitization/empty_string (0.00s)
+    --- PASS: TestSanitization/no_changes (0.00s)
+    --- PASS: TestSanitization/leading/trailing_spaces (0.00s)
+    --- PASS: TestSanitization/slashes (0.00s)
+    --- PASS: TestSanitization/colons (0.00s)
+    --- PASS: TestSanitization/asterisks (0.00s)
+    --- PASS: TestSanitization/question_marks (0.00s)
+    --- PASS: TestSanitization/quotes (0.00s)
+    --- PASS: TestSanitization/angle_brackets (0.00s)
+    --- PASS: TestSanitization/pipes (0.00s)
+    --- PASS: TestSanitization/double_spaces (0.00s)
+    --- PASS: TestSanitization/ampersand (0.00s)
+    --- PASS: TestSanitization/transliteration (0.00s)
+    --- PASS: TestSanitization/non-ascii (0.00s)
+    --- PASS: TestSanitization/basic_sanitization (0.00s)
+    --- PASS: TestSanitization/leading/trailing_periods (0.00s)
+=== RUN   TestMakeFileName
+=== RUN   TestMakeFileName/basic_with_folders
+=== RUN   TestMakeFileName/basic_no_folders
+=== RUN   TestMakeFileName/special_chars_with_folders
+=== RUN   TestMakeFileName/special_chars_no_folders
+=== RUN   TestMakeFileName/feat._replacement
+=== RUN   TestMakeFileName/empty_tags_with_folders
+=== RUN   TestMakeFileName/empty_tags_no_folders
+--- PASS: TestMakeFileName (0.00s)
+    --- PASS: TestMakeFileName/basic_with_folders (0.00s)
+    --- PASS: TestMakeFileName/basic_no_folders (0.00s)
+    --- PASS: TestMakeFileName/special_chars_with_folders (0.00s)
+    --- PASS: TestMakeFileName/special_chars_no_folders (0.00s)
+    --- PASS: TestMakeFileName/feat._replacement (0.00s)
+    --- PASS: TestMakeFileName/empty_tags_with_folders (0.00s)
+    --- PASS: TestMakeFileName/empty_tags_no_folders (0.00s)
+=== RUN   TestSuggestDestinationPath
+=== RUN   TestSuggestDestinationPath/basic_with_folders
+=== RUN   TestSuggestDestinationPath/basic_no_folders
+=== RUN   TestSuggestDestinationPath/long_filename_truncation
+2026/01/31 16:00:34 Warning: Generated filename too long, using original base filename from source path.
+=== RUN   TestSuggestDestinationPath/long_filename_truncation_with_folders
+2026/01/31 16:00:34 Warning: Generated filename too long, using original base filename from source path.
+=== RUN   TestSuggestDestinationPath/nil_trackInfo
+--- PASS: TestSuggestDestinationPath (0.01s)
+    --- PASS: TestSuggestDestinationPath/basic_with_folders (0.00s)
+    --- PASS: TestSuggestDestinationPath/basic_no_folders (0.00s)
+    --- PASS: TestSuggestDestinationPath/long_filename_truncation (0.00s)
+    --- PASS: TestSuggestDestinationPath/long_filename_truncation_with_folders (0.00s)
+    --- PASS: TestSuggestDestinationPath/nil_trackInfo (0.00s)
+=== RUN   TestCopyMusic
+=== RUN   TestCopyMusic/actual_copy_with_folders
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: seek C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+=== RUN   TestCopyMusic/dry_run_copy_with_folders
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: seek C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+2026/01/31 16:00:34 [DRY-RUN] Would copy C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt to C:\Users\darry\AppData\Local\Temp\copy_dest_base_253581349\dest_sub_2323164645\Unknown\Unknown\01 - Test_song.txt
+=== RUN   TestCopyMusic/actual_copy_no_folders
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: seek C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+=== RUN   TestCopyMusic/dry_run_copy_no_folders
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: seek C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+2026/01/31 16:00:34 [DRY-RUN] Would copy C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt to C:\Users\darry\AppData\Local\Temp\copy_dest_base_253581349\dest_sub_3060148410\Unknown - Unknown - 01 - Test_song.txt
+=== RUN   TestCopyMusic/source_file_does_not_exist
+=== RUN   TestCopyMusic/dest_folder_does_not_exist
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: seek C:\Users\darry\AppData\Local\Temp\copy_source_base_3401190422\test_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+    movemusic_test.go:373: CopyMusic() expected error, got nil. Copied to: C:\Users\darry\AppData\Local\Temp\copy_dest_base_253581349\non_existent_dest_root\Unknown\Unknown\01 - Test_song.txt
+--- FAIL: TestCopyMusic (0.01s)
+    --- PASS: TestCopyMusic/actual_copy_with_folders (0.01s)
+    --- PASS: TestCopyMusic/dry_run_copy_with_folders (0.00s)
+    --- PASS: TestCopyMusic/actual_copy_no_folders (0.00s)
+    --- PASS: TestCopyMusic/dry_run_copy_no_folders (0.00s)
+    --- PASS: TestCopyMusic/source_file_does_not_exist (0.00s)
+    --- FAIL: TestCopyMusic/dest_folder_does_not_exist (0.00s)
+=== RUN   TestMoveMusic
+=== RUN   TestMoveMusic/actual_move,_prune_empty_parents
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1\level2\move_song.txt: seek C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1\level2\move_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+2026/01/31 16:00:34 Deleting empty source folder:  C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1\level2
+2026/01/31 16:00:34 Deleting empty source folder:  C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1
+=== RUN   TestMoveMusic/dry_run_move,_no_actual_changes
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1\level2\move_song.txt: seek C:\Users\darry\AppData\Local\Temp\move_source_2434686571\level1\level2\move_song.txt: An attempt was made to move the file pointer before the beginning of the file.
+=== RUN   TestMoveMusic/actual_move,_source_root_is_direct_parent,_parent_not_pruned
+2026/01/31 16:00:34 Warning: could not read tags from C:\Users\darry\AppData\Local\Temp\move_source_2434686571\direct_parent_move.txt: seek C:\Users\darry\AppData\Local\Temp\move_source_2434686571\direct_parent_move.txt: An attempt was made to move the file pointer before the beginning of the file.
+=== RUN   TestMoveMusic/copy_fails,_delete_not_attempted
+=== RUN   TestMoveMusic/move_already_organized_file,_should_not_be_deleted
+--- PASS: TestMoveMusic (0.04s)
+    --- PASS: TestMoveMusic/actual_move,_prune_empty_parents (0.00s)
+    --- PASS: TestMoveMusic/dry_run_move,_no_actual_changes (0.00s)
+    --- PASS: TestMoveMusic/actual_move,_source_root_is_direct_parent,_parent_not_pruned (0.00s)
+    --- PASS: TestMoveMusic/copy_fails,_delete_not_attempted (0.00s)
+    --- PASS: TestMoveMusic/move_already_organized_file,_should_not_be_deleted (0.02s)
+FAIL
+FAIL	muxic/movemusic	0.413s
+FAIL
