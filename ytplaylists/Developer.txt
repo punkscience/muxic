@@ -1,0 +1,6 @@
+Lynn Langit - Introduction to Google App Engine For Developers
+Traversy Media - REST API With Flask & SQL Alchemy
+Jake Wright - Docker Compose in 12 Minutes
+FOSDEM - Gomobile Android development with Go
+Wirecog - Creating Mobile Apps with Go for iOS and Android - Kamesh Balasubramanian
+Agile on the Beach - Visualising software architecture with the C4 model - Simon Brown, Agile on the Beach 2019

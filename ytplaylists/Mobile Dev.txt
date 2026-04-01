@@ -1,0 +1,3 @@
+FOSDEM - Gomobile Android development with Go
+Wirecog - Creating Mobile Apps with Go for iOS and Android - Kamesh Balasubramanian
+Wirecog - Creating Mobile Apps with Go for iOS and Android - Kamesh Balasubramanian

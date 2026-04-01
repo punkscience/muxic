@@ -5,32 +5,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-go build                  # Build the binary
-go run main.go [command]  # Run without building
-go test ./...             # Run all tests
-go test ./pkg/metadata/...  # Run tests in a single package
+go build ./...          # Build
+go test ./...           # Run all tests
+go test ./pkg/sanitization/...  # Run tests for a specific package
+go run main.go copy --source /src --target /dst --dry-run  # Run directly
 ```
 
 ## Architecture
 
-`muxic` is a Go CLI tool (Cobra) for organizing music files by reading ID3 tags and copying/moving files into a structured directory layout.
+Muxic is a CLI music organization tool built with Cobra. It copies/moves music files from a source directory into a structured `Artist/Album/TrackNum - Title.ext` hierarchy at the target.
 
-**Entry point:** `main.go` → `cmd.Execute()`
+### Command flow (copy/move)
 
-**Data flow for `copy`/`move`:**
-1. `cmd/copy.go` parses flags and spawns a worker pool (`runtime.NumCPU()` goroutines)
-2. `musicutils.GetAllMusicFiles()` / `GetFilteredMusicFiles()` streams file paths via a goroutine channel
-3. `movemusic.CopyMusic()` / `MoveMusic()` handles each file:
-   - `pkg/metadata.ReadTrackInfo()` extracts ID3 tags (artist, album, title, track number)
-   - `pkg/sanitization.WindowsSanitizer` cleans metadata for Windows filesystem safety (Unicode transliteration → substitutions → prohibited chars → title casing)
-   - `movemusic.SuggestDestinationPath()` builds the output path as `Artist/Album/NN - Title.ext`
-   - `pkg/filesystem` handles actual file I/O and empty-directory pruning
+`cmd/copy.go` → fans out to N goroutines (one per CPU core) → each worker:
+1. Reads ID3 tags via `pkg/metadata` (uses `github.com/dhowden/tag`)
+2. Generates sanitized destination path via `movemusic.SuggestDestinationPath()` → `pkg/sanitization`
+3. Copies file via `movemusic.CopyMusic()`, or copies + deletes source via `movemusic.MoveMusic()`
 
-**`dedup` command:** `cmd/dedup.go` → `pkg/dedup` uses SHA256 content hashing with a persistent JSON cache at `~/.muxic/dedup_cache.json` (keyed by path, invalidated by ModTime/Size).
+Progress counters use `atomic.AddInt64`; the sanitizer's title-caser is protected by a mutex.
 
-## Key design notes
+### Key packages
 
-- **Sanitization is multi-step and Windows-first** — `pkg/sanitization/sanitization.go` is the most complex module. It handles edge cases like AC/DC-style acronyms and Unicode transliteration before title casing.
-- **`ErrFileAlreadyExists`** is a sentinel error in `movemusic` — it's not counted as a failure and only logged under `--verbose`.
-- **Dry-run** is threaded throughout via a `dryRun bool` flag passed into core functions; no actual file writes occur when true.
-- The tech spec at `docs/technical_specification.md` tracks planned vs. completed features with ✅ markers — update it when implementing new features.
+- **`movemusic/`** — core copy/move logic, filename construction, FLAC-over-MP3 upgrade (auto-removes MP3 if FLAC exists at destination)
+- **`musicutils/`** — recursive file discovery streaming results over a channel; supports name/size/duration filters
+- **`pkg/sanitization/`** — 8-step Windows filesystem sanitization pipeline (Unicode transliteration, reserved char replacement, title casing, etc.)
+- **`pkg/dedup/`** — SHA-256 signature cache persisted at `~/.muxic/dedup_cache.json`; used by `cmd/dedup.go`
+- **`pkg/playlistfetch/`** — Spotify and YouTube Music playlist export; `Service` interface with OAuth via a local callback server on `:8080`
+- **`pkg/config/`** — JSON config at `~/.muxic/config.json` (0600 perms) holding OAuth tokens for streaming services
+
+### dedup command
+
+Walks the target directory, groups files by SHA-256 signature, then either interactively asks which duplicate to keep or auto-deletes in "scorched earth" mode (keeps shortest path).
+
+### playlist-fetch command
+
+Requires credentials in `~/.muxic/config.json` (Spotify) or `~/.muxic/youtube_credentials.json` (YouTube). Writes playlists as `<outputDir>/<sanitizedName>.txt` with one `artist - album - trackNumber - title` line per track.
