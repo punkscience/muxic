@@ -28,6 +28,17 @@ func newTestTrackInfo(artist, album, title, sourcePath, ext string, trackNum int
 	}
 }
 
+// Helper to create a pre-existing file at a path (creating parent dirs as needed)
+func createFileAtPath(t *testing.T, fullPath string, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		t.Fatalf("Failed to create dirs for %s: %v", fullPath, err)
+	}
+	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create file %s: %v", fullPath, err)
+	}
+}
+
 // Helper function to create a dummy source file with given content
 func createDummyFile(t *testing.T, dir string, fileName string, content string) string {
 	t.Helper()
@@ -531,4 +542,56 @@ func TestMoveMusic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCopyMusicFlacUpgrade verifies that when a FLAC source is copied, an existing MP3 at the
+// same destination base name is removed and replaced by the higher-quality FLAC.
+func TestCopyMusicFlacUpgrade(t *testing.T) {
+	srcDir, _ := os.MkdirTemp("", "flac_upgrade_src_*")
+	defer os.RemoveAll(srcDir)
+	destDir, _ := os.MkdirTemp("", "flac_upgrade_dest_*")
+	defer os.RemoveAll(destDir)
+
+	// A dummy .flac source — metadata will fall back to "Unknown" tags.
+	flacSrc := createDummyFile(t, srcDir, "test_song.flac", "dummy flac content")
+
+	// The destination paths the function will derive from the "Unknown" tags.
+	expectedFlacDest := filepath.Join(destDir, "Unknown", "Unknown", "01 - Test_song.flac")
+	existingMp3Dest := filepath.Join(destDir, "Unknown", "Unknown", "01 - Test_song.mp3")
+
+	t.Run("replaces existing mp3 with flac", func(t *testing.T) {
+		createFileAtPath(t, existingMp3Dest, "dummy mp3 content")
+
+		copiedPath, err := CopyMusic(flacSrc, destDir, true, false, true)
+		if err != nil {
+			t.Fatalf("CopyMusic() unexpected error: %v", err)
+		}
+		if copiedPath != expectedFlacDest {
+			t.Errorf("CopyMusic() returned %q, want %q", copiedPath, expectedFlacDest)
+		}
+		if filesystem.FileExists(existingMp3Dest) {
+			t.Errorf("existing MP3 %s was not removed", existingMp3Dest)
+		}
+		if !filesystem.FileExists(expectedFlacDest) {
+			t.Errorf("FLAC was not copied to %s", expectedFlacDest)
+		}
+
+		// Clean up for next sub-test
+		os.Remove(expectedFlacDest)
+	})
+
+	t.Run("dry run does not delete mp3 or create flac", func(t *testing.T) {
+		createFileAtPath(t, existingMp3Dest, "dummy mp3 content")
+
+		_, err := CopyMusic(flacSrc, destDir, true, true, true)
+		if err != nil {
+			t.Fatalf("CopyMusic() dry run unexpected error: %v", err)
+		}
+		if !filesystem.FileExists(existingMp3Dest) {
+			t.Errorf("dry run should not have deleted the existing MP3 %s", existingMp3Dest)
+		}
+		if filesystem.FileExists(expectedFlacDest) {
+			t.Errorf("dry run should not have created FLAC at %s", expectedFlacDest)
+		}
+	})
 }

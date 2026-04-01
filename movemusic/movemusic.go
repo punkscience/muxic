@@ -13,6 +13,7 @@ import (
 	"muxic/pkg/sanitization"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ErrFileAlreadyExists is returned when the destination file for a copy or move operation already exists.
@@ -70,6 +71,24 @@ func CopyMusic(sourceFileFullPath string, destFolderPath string, useFolders bool
 			log.Printf("IDENTICAL: Source and destination are the same, skipping %s", sourceFileFullPath)
 		}
 		return destFileFullPath, ErrFileAlreadyExists
+	}
+
+	// If the source is a FLAC, check whether a lower-quality MP3 already exists at the
+	// destination with the same base name. If so, remove it so the FLAC can replace it.
+	if strings.EqualFold(filepath.Ext(destFileFullPath), ".flac") {
+		mp3DestPath := destFileFullPath[:len(destFileFullPath)-len(filepath.Ext(destFileFullPath))] + ".mp3"
+		if filesystem.FileExists(mp3DestPath) {
+			if dryRun {
+				log.Printf("[DRY-RUN] Would replace lower-quality %s with FLAC %s", mp3DestPath, destFileFullPath)
+			} else {
+				if verbose {
+					log.Printf("UPGRADE: Replacing lower-quality %s with higher-quality FLAC", mp3DestPath)
+				}
+				if err := os.Remove(mp3DestPath); err != nil {
+					return "", fmt.Errorf("error removing MP3 before FLAC upgrade %s: %w", mp3DestPath, err)
+				}
+			}
+		}
 	}
 
 	if filesystem.FileExists(destFileFullPath) {
