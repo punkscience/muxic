@@ -83,13 +83,20 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 		}
 		fmt.Fprintf(stdout, "\r  %-*s", progressWidth, display)
 
-		sig, _, err := dedup.UpdateEntry(path, info, cache, nil)
+		sig, fresh, err := dedup.UpdateEntry(path, info, cache, nil)
 		if err != nil {
 			fmt.Fprintf(stdout, "\nError processing %s: %v\n", path, err)
 			return nil
 		}
 
 		filesBySig[sig] = append(filesBySig[sig], path)
+
+		if fresh {
+			if err := dedup.SaveCache(cachePath, cache); err != nil {
+				fmt.Fprintf(stdout, "\nWarning: could not save cache: %v\n", err)
+			}
+		}
+
 		return nil
 	})
 
