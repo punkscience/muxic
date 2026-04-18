@@ -61,6 +61,7 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 	fmt.Fprintf(stdout, "Scanning %s...\n", targetDir)
 
 	filesBySig := make(map[string][]string)
+	const progressWidth = 80
 
 	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -76,23 +77,28 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 			return nil
 		}
 
-		sig, updated, err := dedup.UpdateEntry(path, info, cache, nil)
-		if err != nil {
-			fmt.Fprintf(stdout, "Error processing %s: %v\n", path, err)
-			return nil
+		display := path
+		if len(display) > progressWidth {
+			display = "..." + display[len(display)-progressWidth+3:]
 		}
-		if updated {
-			// optional: fmt.Fprintf(stdout, ".")
+		fmt.Fprintf(stdout, "\r  %-*s", progressWidth, display)
+
+		sig, _, err := dedup.UpdateEntry(path, info, cache, nil)
+		if err != nil {
+			fmt.Fprintf(stdout, "\nError processing %s: %v\n", path, err)
+			return nil
 		}
 
 		filesBySig[sig] = append(filesBySig[sig], path)
 		return nil
 	})
 
+	fmt.Fprintf(stdout, "\r%-*s\r", progressWidth+2, "")
+
 	if err != nil {
 		return fmt.Errorf("error walking target directory: %v", err)
 	}
-	fmt.Fprintln(stdout, "\nScan complete.")
+	fmt.Fprintln(stdout, "Scan complete.")
 
 	// Process duplicates
 	reader := bufio.NewReader(stdin)

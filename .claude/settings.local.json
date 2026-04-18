@@ -3,7 +3,8 @@
     "allow": [
       "Bash(go list:*)",
       "Bash(go build:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(xargs grep *)"
     ]
   }
 }
