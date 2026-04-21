@@ -40,7 +40,7 @@ Offers interactive or automatic (scorched earth) deletion.`,
 func init() {
 	rootCmd.AddCommand(dedupCmd)
 	dedupCmd.Flags().StringVar(&targetDir, "target", "", "Target directory to scan for duplicates")
-	dedupCmd.Flags().BoolVar(&scorchedEarth, "scorchedearth", false, "Automatically delete duplicates, keeping the one with shortest path")
+	dedupCmd.Flags().BoolVar(&scorchedEarth, "scorchedearth", false, "Automatically delete duplicates, keeping the most recently modified")
 }
 
 func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.Writer) error {
@@ -127,13 +127,8 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 
 		fmt.Fprintf(stdout, "\nDuplicate set found (Signature: %s...):\n", sig[:8])
 
-		// Sort files to ensure deterministic order (e.g. by path length then name)
-		sort.Slice(files, func(i, j int) bool {
-			if len(files[i]) != len(files[j]) {
-				return len(files[i]) < len(files[j]) // Prefer shorter paths
-			}
-			return files[i] < files[j]
-		})
+		// Sort files deterministically for display
+		sort.Strings(files)
 
 		for i, f := range files {
 			fmt.Fprintf(stdout, "%d) %s\n", i+1, f)
@@ -142,8 +137,14 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 		var keepIndex int = -1
 
 		if scorchedEarth {
-			keepIndex = 0 // Keep the first one (shortest path)
-			fmt.Fprintf(stdout, "Scorched Earth: keeping %s\n", files[0])
+			// Keep the most recently modified file
+			keepIndex = 0
+			for i, f := range files {
+				if cache[f].ModTime > cache[files[keepIndex]].ModTime {
+					keepIndex = i
+				}
+			}
+			fmt.Fprintf(stdout, "Scorched Earth: keeping %s\n", files[keepIndex])
 		} else {
 			for {
 				fmt.Fprint(stdout, "Enter number to keep (or 's' to skip, 'a' to keep all): ")
@@ -178,12 +179,10 @@ func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.W
 					fmt.Fprintf(stdout, "Error: %v\n", err)
 				} else {
 					fmt.Fprintln(stdout, "Done.")
-					// Remove from cache
-					delete(cache, f)
-
-					if entry, ok := cache[files[i]]; ok {
+					if entry, ok := cache[f]; ok {
 						bytesSaved += entry.Size
 					}
+					delete(cache, f)
 				}
 			}
 		}
