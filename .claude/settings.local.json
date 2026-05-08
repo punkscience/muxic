@@ -4,7 +4,8 @@
       "Bash(go list:*)",
       "Bash(go build:*)",
       "Bash(go test:*)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(git *)"
     ]
   }
 }
