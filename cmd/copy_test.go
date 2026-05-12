@@ -66,31 +66,55 @@ func setupCobra() {
 	copyCmd.Flags().String("filter", "", "Filter files by a string contained in their path (case-insensitive).")
 	copyCmd.Flags().Int("over", 0, "Only process files over this size in megabytes (MB).")
 	copyCmd.Flags().Int("duration", 0, "Only process files with a duration in minutes greater than or equal to this value.")
-	copyCmd.Flags().BoolVarP(&destructive, "move", "m", false, "Move files instead of copying (deletes source files and empty parent dirs).")
 	copyCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for detailed operation output.")
 	copyCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Simulate operations without making any changes to the file system.")
+}
+
+// setupMoveCobra defines the flags for the move command.
+func setupMoveCobra() {
+	rootCmd.AddCommand(moveCmd)
+	moveCmd.Flags().String("source", "", "The source folder containing music files.")
+	moveCmd.Flags().String("target", "", "The destination folder where music files will be organized.")
+	moveCmd.Flags().String("filter", "", "Filter files by a string contained in their path (case-insensitive).")
+	moveCmd.Flags().Int("over", 0, "Only process files over this size in megabytes (MB).")
+	moveCmd.Flags().Int("duration", 0, "Only process files with a duration in minutes greater than or equal to this value.")
+	moveCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging for detailed operation output.")
+	moveCmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "Simulate operations without making any changes to the file system.")
 }
 
 // executeCommand runs the copy command with the given arguments and returns the log output.
 func executeCommand(t *testing.T, args ...string) string {
 	t.Helper()
 
-	// Redirect log output to a buffer
 	var logOutput bytes.Buffer
 	log.SetOutput(&logOutput)
 
-	// Reset and re-initialize flags before each execution
 	rootCmd.ResetFlags()
 	copyCmd.ResetFlags()
 	setupCobra()
 
-	// Set up the command with arguments
 	rootCmd.SetArgs(append([]string{"copy"}, args...))
 	Execute()
 
-	// Restore original log output
 	log.SetOutput(os.Stderr)
+	return logOutput.String()
+}
 
+// executeMoveCommand runs the move command with the given arguments and returns the log output.
+func executeMoveCommand(t *testing.T, args ...string) string {
+	t.Helper()
+
+	var logOutput bytes.Buffer
+	log.SetOutput(&logOutput)
+
+	rootCmd.ResetFlags()
+	moveCmd.ResetFlags()
+	setupMoveCobra()
+
+	rootCmd.SetArgs(append([]string{"move"}, args...))
+	Execute()
+
+	log.SetOutput(os.Stderr)
 	return logOutput.String()
 }
 
@@ -119,15 +143,14 @@ func TestMoveCommand_DryRun(t *testing.T) {
 	args := []string{
 		"--source", sourceDir,
 		"--target", targetDir,
-		"--move",
 		"--dry-run",
 		"--verbose",
 	}
 
-	output := executeCommand(t, args...)
+	output := executeMoveCommand(t, args...)
 
 	assert.Contains(t, output, "[DRY-RUN] Operation: Moving")
-	assert.Contains(t, output, "Simulated delete actions")
+	assert.Contains(t, output, "Simulated moving")
 	assert.FileExists(t, filepath.Join(sourceDir, "test.mp3"))
 }
 
