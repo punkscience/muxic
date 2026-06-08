@@ -13,9 +13,37 @@ Muxic is an opinionated music organization utility designed to simplify the proc
 
 ## Installation
 
-To install Muxic, you need to have Go installed on your system. You can then install Muxic using the following command:
+### Homebrew (macOS/Linux)
 
-`go get github.com/your-username/muxic`
+After a release tag is published, install using:
+
+`brew install punkscience/muxic/muxic`
+
+### APT / Debian (Linux)
+
+Release tags generate a `.deb` package artifact in GitHub Releases.
+
+Download and install:
+
+`sudo apt install ./muxic_<version>_linux_amd64.deb`
+
+### From source
+
+To install from source, you need Go installed:
+
+`go install github.com/punkscience/muxic@latest`
+
+## CI/CD pipeline
+
+- Pushes and pull requests run build + test in GitHub Actions (`.github/workflows/ci.yml`).
+- Pushing a semver tag like `v1.2.3` triggers the release workflow (`.github/workflows/release.yml`).
+- Release automation uses GoReleaser (`.goreleaser.yaml`) to:
+  - Build binaries for Linux, macOS, and Windows
+  - Publish release archives/checksums to GitHub Releases
+  - Create Debian (`.deb`) packages for APT installation
+  - Publish/update a Homebrew formula in `punkscience/homebrew-muxic`
+- Required repository secret for release publishing:
+  - `HOMEBREW_TAP_GITHUB_TOKEN` (PAT with `contents:write` on the tap repository)
 
 ## Usage
 

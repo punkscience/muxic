@@ -1,0 +1,80 @@
+version: 2
+
+project_name: muxic
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: muxic
+    main: ./main.go
+    binary: muxic
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    builds:
+      - muxic
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+nfpms:
+  - id: muxic-deb
+    package_name: muxic
+    builds:
+      - muxic
+    formats:
+      - deb
+    bindir: /usr/bin
+    homepage: https://github.com/punkscience/muxic
+    maintainer: punkscience
+    description: Opinionated CLI utility to organize music by metadata.
+    license: Unlicense
+    section: utils
+    priority: optional
+
+brews:
+  - name: muxic
+    ids:
+      - muxic
+    repository:
+      owner: punkscience
+      name: homebrew-muxic
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/punkscience/muxic
+    description: Opinionated CLI utility to organize music by metadata.
+    license: Unlicense
+    test: |
+      system "#{bin}/muxic --help"
+
+release:
+  github:
+    owner: punkscience
+    name: muxic
