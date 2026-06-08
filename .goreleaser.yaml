@@ -2,11 +2,6 @@ version: 2
 
 project_name: muxic
 
-before:
-  hooks:
-    - go mod tidy
-    - go test ./...
-
 builds:
   - id: muxic
     main: ./main.go
