@@ -27,6 +27,10 @@ Download and install:
 
 `sudo apt install ./muxic_<version>_linux_amd64.deb`
 
+Example:
+
+`sudo apt install ./muxic_1.2.3_linux_amd64.deb`
+
 ### From source
 
 To install from source, you need Go installed:
