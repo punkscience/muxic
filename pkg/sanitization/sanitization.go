@@ -177,24 +177,20 @@ func (w *WindowsSanitizer) intelligentTitleCase(input string) string {
 		return ""
 	}
 
-	// Use regex to handle title casing while preserving certain patterns
-	words := regexp.MustCompile(`\b\w+\b`).FindAllString(input, -1)
-	result := input
-
-	for _, word := range words {
+	// Transform each whole-word match in place to avoid partial replacement
+	// inside other words (e.g., replacing "is" inside "This").
+	wordPattern := regexp.MustCompile(`\b\w+\b`)
+	return wordPattern.ReplaceAllStringFunc(input, func(word string) string {
 		if w.shouldPreserveCase(word) {
-			// Keep the word as-is if it should preserve case
-			continue
+			// Keep the word as-is if it should preserve case.
+			return word
 		}
 
-		// Replace the word with its title-cased version
 		w.titleCaserMu.Lock()
 		titleCased := w.titleCaser.String(word)
 		w.titleCaserMu.Unlock()
-		result = strings.Replace(result, word, titleCased, 1)
-	}
-
-	return result
+		return titleCased
+	})
 }
 
 // shouldPreserveCase determines if a word should preserve its current casing
