@@ -4,9 +4,12 @@
 package sanitization
 
 import (
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/fiam/gounidecode/unidecode"
 	"golang.org/x/text/cases"
@@ -92,8 +95,14 @@ func (w *WindowsSanitizer) SanitizeForFilesystem(input string) string {
 	// Step 4: Replace prohibited characters with hyphens
 	result = w.prohibitedPattern.ReplaceAllString(result, "-")
 
-	// Step 5: Additional cleanup: remove spaces around hyphens if they result from substitutions
+	// Step 5: Tidy hyphens. First collapse whitespace on BOTH sides of a hyphen
+	// ("A - B" -> "A-B"), then drop whitespace that only precedes a hyphen
+	// ("A -B" -> "A-B") — this happens when Unicode transliteration leaves a
+	// trailing space right before a character that gets replaced by a hyphen
+	// (e.g. "擁抱/Embrace" -> "Yong Bao /Embrace" -> "Yong Bao-Embrace"). A space
+	// that only follows a hyphen is left intact so "AC-DC feat." spacing survives.
 	result = regexp.MustCompile(`\s+-\s+`).ReplaceAllString(result, "-")
+	result = regexp.MustCompile(`\s+-`).ReplaceAllString(result, "-")
 
 	// Step 6: Normalize multiple consecutive spaces to single spaces
 	result = w.normalizeSpaces(result)
@@ -114,9 +123,35 @@ func (w *WindowsSanitizer) SanitizeFolderName(input string) string {
 }
 
 // SanitizeFileName sanitizes a string for use as a file name.
-// Files have the same restrictions as folders in Windows.
+// Files have the same restrictions as folders in Windows. When the input carries
+// a recognizable file extension (e.g. "song.mp3"), the base name is sanitized
+// normally while the extension is only lower-cased and stripped of prohibited
+// characters — it is never title-cased ("song.mp3" -> "Song.mp3", not "Song.Mp3").
 func (w *WindowsSanitizer) SanitizeFileName(input string) string {
-	return w.SanitizeForFilesystem(input)
+	ext := filepath.Ext(input)
+	if !isFileExtension(ext) {
+		return w.SanitizeForFilesystem(input)
+	}
+
+	base := strings.TrimSuffix(input, ext)
+	cleanExt := strings.ToLower(w.prohibitedPattern.ReplaceAllString(ext[1:], "-"))
+	return w.SanitizeForFilesystem(base) + "." + cleanExt
+}
+
+// isFileExtension reports whether ext (as returned by filepath.Ext, including the
+// leading dot) looks like a real file extension: a short, purely alphanumeric
+// suffix. This keeps names that merely contain periods (e.g. "Album.Name") from
+// being split.
+func isFileExtension(ext string) bool {
+	if len(ext) < 2 || len(ext) > 6 || ext[0] != '.' {
+		return false
+	}
+	for _, r := range ext[1:] {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // normalizeSpaces replaces multiple consecutive spaces with single spaces.
@@ -131,8 +166,22 @@ func (w *WindowsSanitizer) normalizeSpaces(input string) string {
 func (w *WindowsSanitizer) applySubstitutions(input string) string {
 	result := input
 
-	// Apply substitutions with specific handling for different patterns
-	for original, replacement := range w.substitutions {
+	// Apply substitutions deterministically, longest key first, so overlapping
+	// keys such as "Feat." (5) and "Feat" (4) don't depend on Go's randomized
+	// map iteration order (which made results non-deterministic).
+	originals := make([]string, 0, len(w.substitutions))
+	for original := range w.substitutions {
+		originals = append(originals, original)
+	}
+	sort.Slice(originals, func(i, j int) bool {
+		if len(originals[i]) != len(originals[j]) {
+			return len(originals[i]) > len(originals[j])
+		}
+		return originals[i] < originals[j]
+	})
+
+	for _, original := range originals {
+		replacement := w.substitutions[original]
 		switch original {
 		case "&":
 			// Replace standalone ampersands
@@ -147,8 +196,10 @@ func (w *WindowsSanitizer) applySubstitutions(input string) string {
 			pattern := regexp.MustCompile(`(?i)\bw/`)
 			result = pattern.ReplaceAllString(result, replacement)
 		default:
-			// For feat. patterns, handle the period specially since it's followed by space
-			if strings.HasSuffix(strings.ToLower(original), "feat.") {
+			// Keys ending in a period (e.g. "feat.", "vs.") need special handling:
+			// a trailing \b won't match after the period (period→space is
+			// non-word→non-word), so match the token plus the literal period.
+			if strings.HasSuffix(original, ".") {
 				pattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(strings.TrimSuffix(original, ".")) + `\.`)
 				result = pattern.ReplaceAllString(result, replacement)
 			} else {
@@ -196,10 +247,10 @@ func (w *WindowsSanitizer) intelligentTitleCase(input string) string {
 // shouldPreserveCase determines if a word should preserve its current casing
 // rather than applying standard title case rules.
 func (w *WindowsSanitizer) shouldPreserveCase(word string) bool {
-	// Only preserve short all-uppercase words (like "AC", "DC", "UK", etc.)
-	// but NOT file extensions or very long uppercase strings
-	if len(word) >= 2 && len(word) <= 4 && strings.ToUpper(word) == word &&
-		!strings.Contains(word, ".") && !strings.Contains(word, "-") {
+	// Preserve two-letter all-uppercase acronyms (like "AC", "DC", "UK").
+	// Longer all-caps runs (e.g. "ALL CAPS TITLE") are treated as shouting and
+	// normalized to title case rather than preserved.
+	if len(word) == 2 && strings.ToUpper(word) == word {
 		return true
 	}
 

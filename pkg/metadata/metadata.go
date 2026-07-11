@@ -2,6 +2,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -33,6 +34,9 @@ func ReadTrackInfo(filePath string) (*TrackInfo, error) {
 
 	file, err := os.Open(filePath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("file does not exist: %s", filePath)
+		}
 		return nil, fmt.Errorf("error opening file %s: %w", filePath, err)
 	}
 	defer file.Close()

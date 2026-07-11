@@ -90,7 +90,7 @@ func TestWindowsSanitizer_SanitizeForFilesystem(t *testing.T) {
 		{"untitled track", "Untitled #1", "Untitled #1"},
 		{"embrace slash", "擁抱/Embrace", "Yong Bao-Embrace"},
 		{"mayday chinese", "五月天 (Mayday)", "Wu Yue Tian (Mayday)"},
-		{"autobiography brackets", "自傳<autobiography>", "Zi Chuan -Autobiography-"},
+		{"autobiography brackets", "自傳<autobiography>", "Zi Chuan-Autobiography-"},
 		{"bjork collaboration", "Björk & Thom Yorke", "Bjork And Thom Yorke"},
 		{"medulla extended", "Medúlla Remixes*Extended", "Medulla Remixes-Extended"},
 		{"desired constellation", "Desired Constellation?", "Desired Constellation-"},
