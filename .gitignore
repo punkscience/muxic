@@ -26,3 +26,6 @@ go.work.sum
 
 # Google OAuth credentials files
 client_secret*.json
+
+# APT signing key material (never commit)
+_aptkeys/

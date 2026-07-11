@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   goreleaser:
@@ -18,13 +19,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Run GoReleaser
+      - name: Check if Homebrew token is configured
+        id: brew_check
+        run: |
+          if [ -n "${{ secrets.TAP_GITHUB_TOKEN }}" ]; then
+            echo "skip_brew=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_brew=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::TAP_GITHUB_TOKEN not set — skipping Homebrew formula update"
+          fi
+
+      - name: Run goreleaser
+        if: steps.brew_check.outputs.skip_brew == 'false'
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -32,4 +44,14 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+      - name: Run goreleaser (skip Homebrew)
+        if: steps.brew_check.outputs.skip_brew == 'true'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --skip=brews
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

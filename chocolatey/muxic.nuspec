@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>muxic</id>
+    <version>1.0.0</version>
+    <title>muxic</title>
+    <authors>Punk Science Studios Inc</authors>
+    <projectUrl>https://github.com/punkscience/muxic</projectUrl>
+    <licenseUrl>https://github.com/punkscience/muxic/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/punkscience/muxic</projectSourceUrl>
+    <docsUrl>https://github.com/punkscience/muxic#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/punkscience/muxic/issues</bugTrackerUrl>
+    <tags>music organizer cli metadata id3 mp3 flac tags</tags>
+    <summary>Opinionated CLI utility to organize music by metadata</summary>
+    <description>
+# muxic
+
+An opinionated command-line music organizer. Copies or moves audio files from a
+source directory into a clean `Artist/Album/TrackNum - Title.ext` hierarchy,
+driven entirely by each file's ID3 tags.
+
+- Recursively scans a source directory and organizes by embedded metadata
+- Copy or move, with a dry-run mode
+- Windows-safe filename sanitization (Unicode transliteration, reserved chars, title casing)
+- Duplicate detection via SHA-256 signatures
+- FLAC-over-MP3 upgrade when a better copy exists
+
+## Supported formats
+
+MP3, FLAC, and other tagged audio formats supported by the underlying tag reader.
+    </description>
+    <releaseNotes>https://github.com/punkscience/muxic/releases/tag/v1.0.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

@@ -1,0 +1,80 @@
+name: Chocolatey Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download checksums.txt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.tag }}"
+          gh release download "$RELEASE_TAG" --pattern "checksums.txt" --dir .
+
+      - name: Extract checksums and update package files
+        id: checksums
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${RELEASE_TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Extract checksums from goreleaser's checksums.txt
+          AMD64_SHA=$(grep "windows_amd64.zip" checksums.txt | awk '{print $1}')
+          ARM64_SHA=$(grep "windows_arm64.zip" checksums.txt | awk '{print $1}')
+          echo "amd64_sha=$AMD64_SHA" >> "$GITHUB_OUTPUT"
+          echo "arm64_sha=$ARM64_SHA" >> "$GITHUB_OUTPUT"
+
+          echo "==> Version: $VERSION"
+          echo "==> amd64 SHA256: $AMD64_SHA"
+          echo "==> arm64 SHA256: $ARM64_SHA"
+
+          # Update nuspec version
+          sed -i "s|<version>[0-9.]*</version>|<version>${VERSION}</version>|" chocolatey/muxic.nuspec
+          sed -i "s|/releases/tag/v[0-9.]*|/releases/tag/${RELEASE_TAG}|" chocolatey/muxic.nuspec
+
+          # Update chocolateyInstall.ps1 URLs and checksums
+          sed -i "s|/download/v[0-9.]*/muxic_[0-9.]*_windows_amd64.zip|/download/${RELEASE_TAG}/muxic_${VERSION}_windows_amd64.zip|" chocolatey/tools/chocolateyInstall.ps1
+          sed -i "s|/download/v[0-9.]*/muxic_[0-9.]*_windows_arm64.zip|/download/${RELEASE_TAG}/muxic_${VERSION}_windows_arm64.zip|" chocolatey/tools/chocolateyInstall.ps1
+          sed -i "s|\$checksum64\s*= '.*'|\$checksum64     = '${AMD64_SHA}'|" chocolatey/tools/chocolateyInstall.ps1
+          sed -i "s|\$checksum64arm\s*= '.*'|\$checksum64arm  = '${ARM64_SHA}'|" chocolatey/tools/chocolateyInstall.ps1
+
+      - name: Pack Chocolatey package
+        shell: pwsh
+        run: |
+          choco pack chocolatey/muxic.nuspec --outputdirectory chocolatey/
+
+      - name: Push to Chocolatey Community Repository
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        run: |
+          $pkg = Get-ChildItem chocolatey/*.nupkg | Select-Object -First 1
+          choco push $pkg.FullName --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY

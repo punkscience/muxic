@@ -19,17 +19,27 @@ After a release tag is published, install using:
 
 `brew install punkscience/muxic/muxic`
 
-### APT / Debian (Linux)
+### APT / Debian & Ubuntu (Linux)
 
-Release tags generate a `.deb` package artifact in GitHub Releases.
+Install from the signed muxic APT repository (amd64 and arm64):
 
-Download and install:
+```sh
+curl -fsSL https://punkscience.github.io/muxic/install.sh | bash
+```
 
-`sudo apt install ./muxic_<version>_linux_amd64.deb`
+Or add the repository manually:
 
-Example:
+```sh
+curl -fsSL https://punkscience.github.io/muxic/apt/muxic-archive-keyring.gpg \
+  | sudo tee /usr/share/keyrings/muxic-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/muxic-archive-keyring.gpg] https://punkscience.github.io/muxic/apt/ stable main" \
+  | sudo tee /etc/apt/sources.list.d/muxic.list
+sudo apt update && sudo apt install muxic
+```
 
-`sudo apt install ./muxic_1.2.3_linux_amd64.deb`
+### Chocolatey (Windows)
+
+`choco install muxic`
 
 ### From source
 
@@ -45,9 +55,15 @@ To install from source, you need Go installed:
   - Build binaries for Linux, macOS, and Windows
   - Publish release archives/checksums to GitHub Releases
   - Create Debian (`.deb`) packages for APT installation
-  - Publish/update a Homebrew formula in `punkscience/homebrew-muxic`
-- Required repository secret for release publishing:
-  - `HOMEBREW_TAP_GITHUB_TOKEN` (PAT with `contents:write` on the tap repository)
+  - Publish/update a Homebrew formula in `punkscience/homebrew-muxic` (skipped if `TAP_GITHUB_TOKEN` is unset)
+- After a release, downstream workflows publish the packages:
+  - `apt-repo.yml` builds the signed APT repo on the `gh-pages` branch (served via GitHub Pages)
+  - `chocolatey-publish.yml` packs and pushes the Chocolatey package
+  - `smoke-tests.yml` installs the published package on Linux and Windows and checks `muxic version`
+- Repository secrets used by release/publish automation:
+  - `APT_SIGNING_KEY` — GPG private key that signs the APT repository (required)
+  - `CHOCOLATEY_API_KEY` — Chocolatey Community Repository push key (required for choco publish)
+  - `TAP_GITHUB_TOKEN` — PAT with `contents:write` on the Homebrew tap repo (optional; skips Homebrew if unset)
 
 ## Usage
 

@@ -1,0 +1,94 @@
+name: Smoke Tests
+
+# Run after goreleaser creates a release. Each platform job is
+# independent — a failure on one platform gates only that platform.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Linux: apt install in Docker
+  # -----------------------------------------------------------------------
+  linux-smoke:
+    runs-on: ubuntu-latest
+    container: ubuntu:latest
+    steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq curl gnupg
+
+      - name: Set up APT repository
+        run: |
+          curl -fsSL https://punkscience.github.io/muxic/apt/muxic-archive-keyring.gpg \
+            -o /usr/share/keyrings/muxic-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/muxic-archive-keyring.gpg] https://punkscience.github.io/muxic/apt/ stable main" \
+            > /etc/apt/sources.list.d/muxic.list
+
+      - name: Install muxic via apt
+        run: |
+          apt-get update -qq
+          apt-get install -y muxic
+
+      - name: Verify version
+        run: |
+          EXPECTED="${{ github.event.release.tag_name || inputs.tag }}"
+          ACTUAL="$(muxic version)"
+          echo "Expected: $EXPECTED"
+          echo "Actual:   $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "ERROR: version mismatch"
+            exit 1
+          fi
+          echo "✓ Linux smoke test passed — muxic $ACTUAL"
+
+  # -----------------------------------------------------------------------
+  # Windows: direct download from release
+  # -----------------------------------------------------------------------
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Determine release tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download and extract muxic
+        shell: pwsh
+        run: |
+          $TAG = "${{ steps.tag.outputs.tag }}"
+          $VERSION = $TAG -replace '^v', ''
+          $ARCH = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq 'Arm64') { 'arm64' } else { 'amd64' }
+          $ZIP = "muxic_${VERSION}_windows_${ARCH}.zip"
+          $URL = "https://github.com/punkscience/muxic/releases/download/${TAG}/${ZIP}"
+          Write-Output "Downloading: $URL"
+          Invoke-WebRequest -Uri $URL -OutFile $env:TEMP\$ZIP
+          Expand-Archive -Path $env:TEMP\$ZIP -DestinationPath $env:TEMP\muxic
+          $env:PATH = "$env:TEMP\muxic;$env:PATH"
+
+      - name: Verify version
+        run: |
+          $EXPECTED = "${{ github.event.release.tag_name || inputs.tag }}"
+          $ACTUAL = (& "$env:TEMP\muxic\muxic.exe" version)
+          Write-Output "Expected: $EXPECTED"
+          Write-Output "Actual:   $ACTUAL"
+          if ($ACTUAL -ne $EXPECTED) {
+            Write-Error "ERROR: version mismatch"
+            exit 1
+          }
+          Write-Output "✓ Windows smoke test passed — muxic $ACTUAL"
