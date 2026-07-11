@@ -1,0 +1,28 @@
+Origin: Punk Science Studios Inc
+Label: muxic
+Suite: stable
+Codename: stable
+Architectures: amd64 arm64
+Components: main
+Description: APT repository for muxic - CLI music organizer
+Date: Sat, 11 Jul 2026 14:35:58 UTC
+MD5Sum:
+ e8a6936aefd354e068281c2e5213f5fe        489 main/binary-amd64/Packages
+ 1b61998a6c5f48e43c0c523093382bd0        382 main/binary-amd64/Packages.gz
+ 129e9a3806831a02ab3a95c350962c89        489 main/binary-arm64/Packages
+ b639309a359fd3401d51a3599333610f        380 main/binary-arm64/Packages.gz
+SHA1:
+ dfb8b591eca7ec04f7452d5718d9a38be79564eb        489 main/binary-amd64/Packages
+ 245216bc1814e25a1d6e0b2a58d6da88ab968d6a        382 main/binary-amd64/Packages.gz
+ e42024374b6b42c4d64e9d443ed02ba3517b7a21        489 main/binary-arm64/Packages
+ 21626b3c39551a3c7149778c613f62a56a9fb9df        380 main/binary-arm64/Packages.gz
+SHA256:
+ 85e831b94db1f6473f5dd5fe46cadf27b8608d45a43328c1974e2055be7cf65f        489 main/binary-amd64/Packages
+ ca61aaf377541847e42235232de1ab399e05bdba052c3a3125a5e6c6bb9eba97        382 main/binary-amd64/Packages.gz
+ c750b4aa4400a0a25d56888ebd2dcb35c0a64f36ea3a2c4bb4c4063b9d354371        489 main/binary-arm64/Packages
+ b1c20c4c2224f5254f080e88a54e325dd30ae34157aebe56015dff2db18f4f51        380 main/binary-arm64/Packages.gz
+SHA512:
+ 4062931ff31d396f4bf02a3e02890e4a493f67a08f1cac399abb709a6dd96074fc4e55f2ef9f3a3cef31932b7c556b892afacc150a00b1f6cf973aed4afca1ee        489 main/binary-amd64/Packages
+ 58d898ae5ab6fec77cede65eb5280a908c8b1c93a08f4b687453abb752b292b113c10c91ce0715dcda1e1181d5009eedafaa34f531442363cca77682a73ae5ba        382 main/binary-amd64/Packages.gz
+ 835595a5f69d2616674a4051017ec4e1373560bf72c481975f3485a750bc2aa4fac58efc42e6c93259ca26f5063a7d29f2de214b9354af7b591315afd9a81a19        489 main/binary-arm64/Packages
+ 17f0bf00c035aa4bd43a3a8e5a72c73c7446a687fe360893af057f2e4b70673c06beedd5f71bf2fee7132a2a8736561b9e5a182a60d24c1d2834908519473e10        380 main/binary-arm64/Packages.gz

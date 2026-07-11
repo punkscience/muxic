@@ -1,0 +1,15 @@
+Package: muxic
+Version: 1.0.0
+Architecture: amd64
+Maintainer: Darryl Wright <darryl@punkscience.ca>
+Installed-Size: 19824
+Filename: pool/main/muxic_1.0.0_amd64.deb
+Size: 7566166
+MD5sum: b4c273b9655cfc67c702c9908110a64d
+SHA1: 568fb7447040c9d3099a7b68c7a01c658f134fb0
+SHA256: 508b3326f7be482bb234b4fcc2e9cfae226b976edc4036efe47fcb4c9fd23958
+Section: utils
+Priority: optional
+Homepage: https://github.com/punkscience/muxic
+Description: Opinionated CLI utility to organize music by metadata.
+
