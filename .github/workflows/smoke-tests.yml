@@ -44,9 +44,20 @@ jobs:
             > /etc/apt/sources.list.d/muxic.list
 
       - name: Install muxic via apt
+        # This job fans out in parallel with apt-repo.yml, so the repo index and
+        # its Pages redeploy may lag briefly. Retry until the package resolves.
         run: |
-          apt-get update -qq
-          apt-get install -y muxic
+          for i in $(seq 1 15); do
+            apt-get update -qq || true
+            if apt-get install -y muxic; then
+              exit 0
+            fi
+            echo "muxic not available yet (attempt $i) — waiting for apt-repo + Pages…"
+            rm -f /var/lib/apt/lists/punkscience.github.io_* || true
+            sleep 20
+          done
+          echo "ERROR: muxic did not become installable via apt in time"
+          exit 1
 
       - name: Verify version
         run: |
