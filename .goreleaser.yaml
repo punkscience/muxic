@@ -62,8 +62,6 @@ nfpms:
 
 brews:
   - name: muxic
-    ids:
-      - muxic
     repository:
       owner: punkscience
       name: homebrew-muxic
