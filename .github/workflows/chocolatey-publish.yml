@@ -1,6 +1,12 @@
 name: Chocolatey Publish
 
 on:
+  # goreleaser publishes the release with GITHUB_TOKEN, so `release: published`
+  # never fires for this workflow — workflow_run is the signal that does.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  # Retained for manually-published releases and as a re-run fallback.
   release:
     types: [published]
   workflow_dispatch:
@@ -15,6 +21,10 @@ permissions:
 
 jobs:
   publish:
+    # Skip when the Release run failed; always run for manual/release paths.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -24,7 +34,9 @@ jobs:
         id: tag
         shell: bash
         run: |
-          if [ -n "${{ github.event.release.tag_name }}" ]; then
+          if [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            echo "tag=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.release.tag_name }}" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"

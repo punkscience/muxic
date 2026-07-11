@@ -3,6 +3,11 @@ name: Smoke Tests
 # Run after goreleaser creates a release. Each platform job is
 # independent — a failure on one platform gates only that platform.
 on:
+  # goreleaser publishes the release with GITHUB_TOKEN, so `release: published`
+  # never fires for this workflow — workflow_run is the signal that does.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   release:
     types: [published]
   workflow_dispatch:
@@ -20,6 +25,9 @@ jobs:
   # Linux: apt install in Docker
   # -----------------------------------------------------------------------
   linux-smoke:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     container: ubuntu:latest
     steps:
@@ -42,7 +50,7 @@ jobs:
 
       - name: Verify version
         run: |
-          EXPECTED="${{ github.event.release.tag_name || inputs.tag }}"
+          EXPECTED="${{ github.event.workflow_run.head_branch || github.event.release.tag_name || inputs.tag }}"
           ACTUAL="$(muxic version)"
           echo "Expected: $EXPECTED"
           echo "Actual:   $ACTUAL"
@@ -56,13 +64,18 @@ jobs:
   # Windows: direct download from release
   # -----------------------------------------------------------------------
   windows-smoke:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: windows-latest
     steps:
       - name: Determine release tag
         id: tag
         shell: bash
         run: |
-          if [ -n "${{ github.event.release.tag_name }}" ]; then
+          if [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            echo "tag=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.release.tag_name }}" ]; then
             echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
@@ -83,7 +96,7 @@ jobs:
 
       - name: Verify version
         run: |
-          $EXPECTED = "${{ github.event.release.tag_name || inputs.tag }}"
+          $EXPECTED = "${{ github.event.workflow_run.head_branch || github.event.release.tag_name || inputs.tag }}"
           $ACTUAL = (& "$env:TEMP\muxic\muxic.exe" version)
           Write-Output "Expected: $EXPECTED"
           Write-Output "Actual:   $ACTUAL"
