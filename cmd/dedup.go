@@ -7,8 +7,7 @@ import (
 	"log"
 	"muxic/pkg/dedup"
 	"os"
-	"path/filepath"
-	"sort"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,12 +18,13 @@ var (
 	scorchedEarth bool
 )
 
-// dedupCmd represents the dedup command
+var musicExtensions = []string{".mp3", ".flac", ".m4a", ".wav"}
+
 var dedupCmd = &cobra.Command{
 	Use:   "dedup",
 	Short: "Find and remove duplicate music files",
-	Long: `Scans the target directory for duplicate music files based on exact binary content.
-Maintains a local cache to speed up subsequent scans.
+	Long: `Scans the target directory for music files with identical binary content.
+Only files that share a size are read, and only fully when their first and last 16 KiB match.
 Offers interactive or automatic (scorched earth) deletion.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if targetDir == "" {
@@ -44,168 +44,96 @@ func init() {
 }
 
 func runDedup(targetDir string, scorchedEarth bool, stdin io.Reader, stdout io.Writer) error {
-	// Resolve user home directory for cache
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("could not get user home directory: %v", err)
-	}
-	cachePath := filepath.Join(homeDir, ".muxic", "dedup_cache.json")
-
-	fmt.Fprintln(stdout, "Loading cache from", cachePath)
-	cache, err := dedup.LoadCache(cachePath)
-	if err != nil {
-		fmt.Fprintf(stdout, "Warning: Could not load cache: %v. Starting fresh.\n", err)
-		cache = make(dedup.Cache)
-	}
-
 	fmt.Fprintf(stdout, "Scanning %s...\n", targetDir)
-
-	filesBySig := make(map[string][]string)
-	const progressWidth = 80
-
-	err = filepath.Walk(targetDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-
-		// Simple extension check
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext != ".mp3" && ext != ".flac" && ext != ".m4a" && ext != ".wav" {
-			return nil
-		}
-
-		display := path
-		if len(display) > progressWidth {
-			display = "..." + display[len(display)-progressWidth+3:]
-		}
-		fmt.Fprintf(stdout, "\r  %-*s", progressWidth, display)
-
-		sig, fresh, err := dedup.UpdateEntry(path, info, cache, nil)
-		if err != nil {
-			fmt.Fprintf(stdout, "\nError processing %s: %v\n", path, err)
-			return nil
-		}
-
-		filesBySig[sig] = append(filesBySig[sig], path)
-
-		if fresh {
-			if err := dedup.SaveCache(cachePath, cache); err != nil {
-				fmt.Fprintf(stdout, "\nWarning: could not save cache: %v\n", err)
-			}
-		}
-
-		return nil
+	result, err := dedup.Find(targetDir, dedup.Options{
+		Extensions: musicExtensions,
+		Workers:    runtime.NumCPU(),
+		Warn:       func(err error) { fmt.Fprintf(stdout, "Warning: %v\n", err) },
 	})
-
-	fmt.Fprintf(stdout, "\r%-*s\r", progressWidth+2, "")
-
 	if err != nil {
-		return fmt.Errorf("error walking target directory: %v", err)
+		return fmt.Errorf("error scanning target directory: %w", err)
 	}
-	fmt.Fprintln(stdout, "Scan complete.")
+	fmt.Fprintf(stdout, "Scan complete. %d music files, %d duplicate sets.\n", result.Scanned, len(result.Groups))
 
-	// Process duplicates
-	reader := bufio.NewReader(stdin)
-	duplicatesFound := 0
-	bytesSaved := int64(0)
-
-	// Create a list of signatures to iterate deterministically
-	var sigs []string
-	for sig, files := range filesBySig {
-		if len(files) > 1 {
-			sigs = append(sigs, sig)
-		}
-	}
-	sort.Strings(sigs)
-
-	for _, sig := range sigs {
-		files := filesBySig[sig]
-		duplicatesFound++
-
-		fmt.Fprintf(stdout, "\nDuplicate set found (Signature: %s...):\n", sig[:8])
-
-		// Sort files deterministically for display
-		sort.Strings(files)
-
-		for i, f := range files {
-			fmt.Fprintf(stdout, "%d) %s\n", i+1, f)
-		}
-
-		var keepIndex int = -1
-
-		if scorchedEarth {
-			// Keep the most recently modified file
-			keepIndex = 0
-			for i, f := range files {
-				if cache[f].ModTime > cache[files[keepIndex]].ModTime {
-					keepIndex = i
-				}
-			}
-			fmt.Fprintf(stdout, "Scorched Earth: keeping %s\n", files[keepIndex])
-		} else {
-			for {
-				fmt.Fprint(stdout, "Enter number to keep (or 's' to skip, 'a' to keep all): ")
-				input, _ := reader.ReadString('\n')
-				input = strings.TrimSpace(input)
-
-				if input == "s" || input == "a" {
-					keepIndex = -1
-					break
-				}
-
-				var idx int
-				if _, err := fmt.Sscanf(input, "%d", &idx); err == nil {
-					if idx >= 1 && idx <= len(files) {
-						keepIndex = idx - 1
-						break
-					}
-				}
-				fmt.Fprintln(stdout, "Invalid input.")
-			}
-		}
-
-		if keepIndex != -1 {
-			// Delete others
-			for i, f := range files {
-				if i == keepIndex {
-					continue
-				}
-
-				fmt.Fprintf(stdout, "Deleting %s... ", f)
-				if err := os.Remove(f); err != nil {
-					fmt.Fprintf(stdout, "Error: %v\n", err)
-				} else {
-					fmt.Fprintln(stdout, "Done.")
-					if entry, ok := cache[f]; ok {
-						bytesSaved += entry.Size
-					}
-					delete(cache, f)
-				}
-			}
-		}
-	}
-
-	fmt.Fprintln(stdout, "Pruning cache...")
-	for path := range cache {
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			delete(cache, path)
-		}
-	}
-
-	if err := dedup.SaveCache(cachePath, cache); err != nil {
-		fmt.Fprintf(stdout, "Error saving cache: %v\n", err)
-	} else {
-		fmt.Fprintln(stdout, "Cache saved.")
-	}
-
-	if duplicatesFound == 0 {
+	if len(result.Groups) == 0 {
 		fmt.Fprintln(stdout, "No duplicates found.")
-	} else {
-		fmt.Fprintf(stdout, "Cleanup complete. Saved approx %.2f MB\n", float64(bytesSaved)/(1024*1024))
+		return nil
 	}
 
+	reader := bufio.NewReader(stdin)
+	var bytesSaved int64
+	for _, files := range result.Groups {
+		fmt.Fprintln(stdout, "\nDuplicate set found:")
+		for i, f := range files {
+			fmt.Fprintf(stdout, "%d) %s\n", i+1, f.Path)
+		}
+
+		var keepIndex int
+		if scorchedEarth {
+			keepIndex = newest(files)
+			fmt.Fprintf(stdout, "Scorched Earth: keeping %s\n", files[keepIndex].Path)
+		} else {
+			keepIndex = askKeep(reader, stdout, len(files))
+		}
+		if keepIndex < 0 {
+			continue
+		}
+		bytesSaved += deleteOthers(files, keepIndex, stdout)
+	}
+
+	fmt.Fprintf(stdout, "Cleanup complete. Saved approx %.2f MB\n", float64(bytesSaved)/(1024*1024))
 	return nil
+}
+
+func newest(files dedup.Group) int {
+	keep := 0
+	for i, f := range files {
+		if f.ModTime.After(files[keep].ModTime) {
+			keep = i
+		}
+	}
+	return keep
+}
+
+// askKeep returns the index of the file to keep, or -1 to leave the set alone.
+func askKeep(reader *bufio.Reader, stdout io.Writer, n int) int {
+	for {
+		fmt.Fprint(stdout, "Enter number to keep (or 's' to skip, 'a' to keep all): ")
+		input, err := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		if input == "s" || input == "a" || (err != nil && input == "") {
+			return -1
+		}
+		var idx int
+		if _, err := fmt.Sscanf(input, "%d", &idx); err == nil && idx >= 1 && idx <= n {
+			return idx - 1
+		}
+		fmt.Fprintln(stdout, "Invalid input.")
+	}
+}
+
+func deleteOthers(files dedup.Group, keepIndex int, stdout io.Writer) int64 {
+	keeper := files[keepIndex]
+	if err := dedup.Verify(keeper); err != nil {
+		fmt.Fprintf(stdout, "Skipping set, keeper changed: %v\n", err)
+		return 0
+	}
+	var saved int64
+	for i, f := range files {
+		if i == keepIndex {
+			continue
+		}
+		fmt.Fprintf(stdout, "Deleting %s... ", f.Path)
+		if err := dedup.Verify(f); err != nil {
+			fmt.Fprintf(stdout, "Skipped: %v\n", err)
+			continue
+		}
+		if err := os.Remove(f.Path); err != nil {
+			fmt.Fprintf(stdout, "Error: %v\n", err)
+			continue
+		}
+		fmt.Fprintln(stdout, "Done.")
+		saved += dedup.Reclaims(f)
+	}
+	return saved
 }

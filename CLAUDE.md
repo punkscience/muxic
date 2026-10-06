@@ -29,13 +29,13 @@ Progress counters use `atomic.AddInt64`; the sanitizer's title-caser is protecte
 - **`movemusic/`** — core copy/move logic, filename construction, FLAC-over-MP3 upgrade (auto-removes MP3 if FLAC exists at destination)
 - **`musicutils/`** — recursive file discovery streaming results over a channel; supports name/size/duration filters
 - **`pkg/sanitization/`** — 8-step Windows filesystem sanitization pipeline (Unicode transliteration, reserved char replacement, title casing, etc.)
-- **`pkg/dedup/`** — SHA-256 signature cache persisted at `~/.muxic/dedup_cache.json`; used by `cmd/dedup.go`
+- **`pkg/dedup/`** — cacheless duplicate finder: groups by size, collapses hardlinks, hashes first/last 16 KiB, then full SHA-256 only for survivors; `Verify` re-stats before deletion. Used by `cmd/dedup.go`
 - **`pkg/playlistfetch/`** — Spotify and YouTube Music playlist export; `Service` interface with OAuth via a local callback server on `:8080`
 - **`pkg/config/`** — JSON config at `~/.muxic/config.json` (0600 perms) holding OAuth tokens for streaming services
 
 ### dedup command
 
-Walks the target directory, groups files by SHA-256 signature, then either interactively asks which duplicate to keep or auto-deletes in "scorched earth" mode (keeps shortest path).
+Finds identical `.mp3/.flac/.m4a/.wav` files via `pkg/dedup` (nothing is persisted between runs), then either interactively asks which duplicate to keep or auto-deletes in "scorched earth" mode (keeps the most recently modified, ties broken by path order).
 
 ### playlist-fetch command
 

@@ -1,114 +1,218 @@
+// Package dedup finds files with identical content, reading as little as possible:
+// size, then file identity, then the first and last 16 KiB, then the full content.
 package dedup
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"io"
+	"cmp"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
+	"time"
 )
 
-// FileEntry represents the cached metadata for a file.
-type FileEntry struct {
-	Signature string `json:"signature"`
-	ModTime   int64  `json:"mod_time"`
-	Size      int64  `json:"size"`
+type File struct {
+	Path    string
+	Size    int64
+	ModTime time.Time
+	ID      ID
+	info    fs.FileInfo
 }
 
-// Cache represents the mapping of file paths to their signatures.
-type Cache map[string]FileEntry
+// Group holds files with identical content, sorted by path.
+type Group []File
 
-// LoadCache loads the cache from the specified file.
-// If the file does not exist, it returns an empty cache.
-func LoadCache(path string) (Cache, error) {
-	f, err := os.Open(path)
-	if os.IsNotExist(err) {
-		return make(Cache), nil
+type Options struct {
+	// Extensions limits the scan to these lower-case extensions, e.g. ".mp3". Empty means all files.
+	Extensions []string
+	Workers    int
+	Warn       func(error)
+}
+
+type Result struct {
+	Scanned int
+	Groups  []Group
+}
+
+func Find(root string, opts Options) (Result, error) {
+	if opts.Warn == nil {
+		opts.Warn = func(error) {}
 	}
+	files, err := walk(root, opts)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
-	defer f.Close()
-
-	var cache Cache
-	if err := json.NewDecoder(f).Decode(&cache); err != nil {
-		// If decoding fails (e.g., empty or corrupt file), return empty cache
-		return make(Cache), nil
-	}
-	return cache, nil
+	groups := bySize(files)
+	groups = withIdentity(groups, opts)
+	groups = regroup(groups, opts, func(Group) bool { return true }, edgeSum)
+	groups = regroup(groups, opts, func(g Group) bool { return !coversWholeFile(g[0].Size) }, fullSum)
+	sortGroups(groups)
+	return Result{Scanned: len(files), Groups: groups}, nil
 }
 
-// SaveCache saves the cache to the specified file.
-func SaveCache(path string, cache Cache) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+var ErrChanged = errors.New("changed since scan")
+
+// Verify confirms f still matches what was scanned, guarding against edits between hashing and acting.
+func Verify(f File) error {
+	info, err := os.Lstat(f.Path)
+	if err != nil {
 		return err
 	}
-
-	f, err := os.Create(path)
+	id, err := identify(f.Path, info)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	encoder := json.NewEncoder(f)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(cache)
+	if info.Size() != f.Size || !info.ModTime().Equal(f.ModTime) || (f.ID.Known() && !id.SameObject(f.ID)) {
+		return fmt.Errorf("%s: %w", f.Path, ErrChanged)
+	}
+	return nil
 }
 
-// GenerateSignature computes the SHA-256 hash of the file content.
-func GenerateSignature(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
+// Reclaims reports the bytes deleting f frees; a name sharing an inode with other names frees nothing.
+func Reclaims(f File) int64 {
+	if f.ID.Links > 1 {
+		return 0
 	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return f.Size
 }
 
-// UpdateEntry updates the cache entry for a file if necessary.
-// It returns the signature and a boolean indicating if the signature was computed (fresh).
-func UpdateEntry(path string, info os.FileInfo, cache Cache, mu *sync.Mutex) (string, bool, error) {
-	// Check if entry exists and is up to date
-	if mu != nil {
-		mu.Lock()
-	}
-	entry, exists := cache[path]
-	if mu != nil {
-		mu.Unlock()
-	}
+func walk(root string, opts Options) ([]File, error) {
+	var files []File
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if path == root {
+				return err
+			}
+			opts.Warn(err)
+			if d != nil && d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() || !wanted(path, opts.Extensions) {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			opts.Warn(fmt.Errorf("stat %s: %w", path, err))
+			return nil
+		}
+		if info.Size() == 0 {
+			return nil
+		}
+		files = append(files, File{Path: path, Size: info.Size(), ModTime: info.ModTime(), info: info})
+		return nil
+	})
+	return files, err
+}
 
-	if exists && entry.ModTime == info.ModTime().Unix() && entry.Size == info.Size() {
-		return entry.Signature, false, nil
-	}
+func wanted(path string, exts []string) bool {
+	return len(exts) == 0 || slices.Contains(exts, strings.ToLower(filepath.Ext(path)))
+}
 
-	// Compute new signature
-	sig, err := GenerateSignature(path)
-	if err != nil {
-		return "", false, err
+func bySize(files []File) []Group {
+	m := map[int64]Group{}
+	for _, f := range files {
+		m[f.Size] = append(m[f.Size], f)
 	}
-
-	newEntry := FileEntry{
-		Signature: sig,
-		ModTime:   info.ModTime().Unix(),
-		Size:      info.Size(),
+	var groups []Group
+	for _, g := range m {
+		if len(g) > 1 {
+			groups = append(groups, g)
+		}
 	}
+	return groups
+}
 
-	if mu != nil {
-		mu.Lock()
-		cache[path] = newEntry
-		mu.Unlock()
-	} else {
-		cache[path] = newEntry
+func withIdentity(groups []Group, opts Options) []Group {
+	var out []Group
+	for _, g := range groups {
+		var kept Group
+		for _, f := range g {
+			id, err := identify(f.Path, f.info)
+			if err != nil {
+				opts.Warn(fmt.Errorf("identify %s: %w", f.Path, err))
+				continue
+			}
+			f.ID = id
+			if !slices.ContainsFunc(kept, func(k File) bool { return k.ID.SameObject(id) }) {
+				kept = append(kept, f)
+			}
+		}
+		if len(kept) > 1 {
+			out = append(out, kept)
+		}
 	}
+	return out
+}
 
-	return sig, true, nil
+type job struct {
+	group int
+	file  File
+}
+
+type keyed struct {
+	group int
+	sum   digest
+}
+
+// regroup splits each selected group by the digest sum produces, in parallel, dropping singletons.
+func regroup(groups []Group, opts Options, selected func(Group) bool, sum func(File) (digest, error)) []Group {
+	var out []Group
+	var jobs []job
+	for i, g := range groups {
+		if !selected(g) {
+			out = append(out, g)
+			continue
+		}
+		for _, f := range g {
+			jobs = append(jobs, job{group: i, file: f})
+		}
+	}
+	slices.SortFunc(jobs, func(a, b job) int { return cmp.Compare(a.file.ID.Ino, b.file.ID.Ino) })
+
+	results := make(map[keyed]Group)
+	var mu sync.Mutex
+	queue := make(chan job)
+	var wg sync.WaitGroup
+	for range max(opts.Workers, 1) {
+		wg.Go(func() {
+			for j := range queue {
+				d, err := sum(j.file)
+				if err != nil {
+					opts.Warn(fmt.Errorf("hash %s: %w", j.file.Path, err))
+					continue
+				}
+				k := keyed{group: j.group, sum: d}
+				mu.Lock()
+				results[k] = append(results[k], j.file)
+				mu.Unlock()
+			}
+		})
+	}
+	for _, j := range jobs {
+		queue <- j
+	}
+	close(queue)
+	wg.Wait()
+
+	for _, g := range results {
+		if len(g) > 1 {
+			out = append(out, g)
+		}
+	}
+	return out
+}
+
+func sortGroups(groups []Group) {
+	for _, g := range groups {
+		slices.SortFunc(g, func(a, b File) int { return cmp.Compare(a.Path, b.Path) })
+	}
+	slices.SortFunc(groups, func(a, b Group) int {
+		return cmp.Or(cmp.Compare(b[0].Size, a[0].Size), cmp.Compare(a[0].Path, b[0].Path))
+	})
 }
